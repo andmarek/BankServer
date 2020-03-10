@@ -1,7 +1,7 @@
-#ifndef REQUEST_H 
-#define REQUEST_H 
+#ifndef REQUEST_H
+#define REQUEST_H
 typedef struct request {
-    struct job *next;
+    struct request *next;
     int request_id;
     int check_acc_id;
     transaction *transactions;
