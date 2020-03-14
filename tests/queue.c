@@ -5,26 +5,35 @@
 
 struct queue_node {
     queue_node_t *next;
-    queue_node_t *prev;
     void *datum;
 };
 
+/* Our constructor */
 void queue_init(queue_t *q)
 {
-    q = malloc(1*sizeof(queue_t));
     q->head = NULL;
-    q->rear = NULL;
+    //q->rear = NULL;
+
     q->size = 0;
 }
 
-queue_node_t *insert_node(queue_t *q, void *d)
+/* Insert a new node into the queue */
+queue_node_t *add(queue_t *q, void *v)
 {
-    queue_node_t *n = malloc(sizeof(queue_node_t));
+    printf("Insert node entered.\n");
 
-    q->rear->next = n;
-    n->datum = d;
-    n->prev = q->rear;
-    q->rear = n;
+    queue_node_t *n;
+    n =  malloc(sizeof(queue_node_t));
+
+    n->datum = v;
+    n->next = NULL;
+
+    /* If our list is empty */
+    if (q->head) {
+        printf("Head was empty\n");
+        q->head = n;
+    }
+
     q->size++;
 
     return n;

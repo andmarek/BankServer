@@ -5,15 +5,16 @@
 
 int main()
 {
-    queue_t *q;
+    queue_t *q = malloc(sizeof(queue_t));
     queue_init(q);
 
     int x = 5;
 
-    if (!insert_node(q, &x)) {
+    if (!add(q, &x)) {
         perror("dogs\n");
     }
-    //printf("%d\n", q->head);
+    printf("%d\n", (int *) q->head->datum);
 
     return 0;
 }
+
