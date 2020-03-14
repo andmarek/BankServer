@@ -6,6 +6,14 @@
 #include "Bank.h"
 
 
+request *parse_request(char **input)
+{
+    char *sep = " \t\r\n\a"
+    request *r = malloc(sizeof request);
+    strtok();
+
+}
+
 int main(int argc, char **argv)
 {
     // get user input
@@ -20,11 +28,18 @@ int main(int argc, char **argv)
 
     FILE *f;
     f = fopen(responses, w);
-    
+
+    /* Initialize the accounts */
     if (initialize_accounts(num_accounts) != 1) {
         perror("Error: initialize accounts failed");
     }
-    
+
+    printf("%d accounts created.\n", num_accounts);
+
+    /* Let's create the threads here */
+    printf("%d threads created. \n", num_threads);
+
+
 
     return 0;
 }

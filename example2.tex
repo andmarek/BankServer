@@ -1,0 +1,122 @@
+\documentclass{article}
+
+\usepackage{clrscode}
+\usepackage{graphicx}
+\usepackage{psfig}
+
+\title{Recursion Trees in Latex}
+\author{Martin~J.~Strauss}
+
+\begin{document}
+
+\maketitle
+
+\section{Overview}
+
+There are several choices for giving recurrence trees in latex:
+\begin{itemize}
+\item latex \verb|tabular| or \verb|array| environment
+\item including a postscript or pdf file generated elsewhere
+\item latex \verb|picture| environment
+\item a package for trees (similar in concept to a package for
+  pseudocode)
+\end{itemize}
+
+
+\section{Table Example}
+
+To describe a recursion tree in Latex, one can use a table.  To
+typeset a table in text mode, use the \verb|tabular| environment (and
+all math has to go in math mode, between dollar signs).  To typeset a
+table in math mode, use the \verb|array| environment (and all text needs to
+go in an \verb|\mbox|).
+
+\[
+\begin{array}{|c|c|c|c|}  	% four columns; position text in CENTER of column 
+\hline				% use `r' for right and `l' for left
+\mbox{Depth} & \mbox{Number of nodes} & \mbox{Problem size (each node)} & \mbox{ total problem size}\\
+\hline\hline
+% depth   & number        & size & total size
+  0       & 1             &  n   & n\\
+\hline
+  1       & 3             & n/2  & 3n/2\\
+\hline
+  2       & 9             & n/4  & 9n/4\\
+\hline
+ \vdots & & & \\
+\hline
+\log_2(n) & 3^{\log_2(n)} & 1    & 3^{\log_2(n)}\\
+\hline
+\end{array}
+\]
+
+\section{\LaTeX Picture Enviornment}
+ 
+\begin{center}
+\begin{picture}(200,100)(0,100) % 200 horiz by 100 vertical picture.
+                                % lower left corner has coordinates (0,100)
+
+\put(100,200){\makebox(0,0)[c]{$n$}}
+\put( 90,190){\vector(-2,-1){20}}
+\put(110,190){\vector(+2,-1){20}}
+
+\put( 60,160){\makebox(0,0)[c]{$n/3$}}
+\put(140,160){\makebox(0,0)[c]{$n/3$}}
+
+\put( 55,150){\vector(-1,-2){5}}
+\put( 65,150){\vector(+1,-2){5}}
+
+\put(135,150){\vector(-1,-2){5}}
+\put(145,150){\vector(+1,-2){5}}
+
+\put( 45, 130){\makebox(0,0)[c]{$n/9$}}
+\put( 75, 130){\makebox(0,0)[c]{$n/9$}}
+\put(125, 130){\makebox(0,0)[c]{$n/9$}}
+\put(155, 130){\makebox(0,0)[c]{$n/9$}}
+
+\put( 45, 120){\makebox(0,0)[c]{$\vdots$}}
+\put( 75, 120){\makebox(0,0)[c]{$\vdots$}}
+\put(125, 120){\makebox(0,0)[c]{$\vdots$}}
+\put(155, 120){\makebox(0,0)[c]{$\vdots$}}
+
+\put( 45, 100){\makebox(0,0)[c]{$1$}}
+\put( 75, 100){\makebox(0,0)[c]{$1$}}
+\put(125, 100){\makebox(0,0)[c]{$1$}}
+\put(155, 100){\makebox(0,0)[c]{$1$}}
+
+\put(0,145){\makebox(0,0)[c]{$\log(n)$}}
+\put(0,155){\vector(0,1){35}}
+\put(0,135){\vector(0,-1){35}}
+
+\end{picture}
+\end{center}
+
+\section{Package}
+
+You might try a package like:
+
+\verb|http://www.essex.ac.uk/linguistics/clmt/latex4ling/trees/|
+
+I'm not familiar with it.
+
+\section{Including a Picture}
+
+See \verb|http://www.artofproblemsolving.com/LaTeX/AoPS_L_PictHow.php|
+
+These instruction vary from installation to installation.  While I
+could not get that to work, the following did.  On linux, I did the
+following by creating a file using xfig, exporting to \verb|tree.eps|,
+using the command \verb|latex example2| to get \verb|example2.dvi|,
+then converting to \verb|example2.pdf| by \verb|dvipdfm example2|.
+The included tree picture is in Figure~\ref{fig:sine}.
+
+(latex is very good for typesetting mathematics and related technical
+material, but not very good for simple images.)
+
+\begin{figure}
+\caption{Included Figure.}\label{fig:sine}
+\vspace*{12pt}
+\centerline{\psfig{figure=tree.eps,width=3.0in}}
+\end{figure}
+
+\end{document}
