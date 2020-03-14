@@ -9,11 +9,19 @@ int main()
     queue_init(q);
 
     int x = 5;
+    int y = 6;
+    int z = 7;
 
     if (!add(q, &x)) {
         perror("dogs\n");
     }
-    printf("%d\n", (int *) q->head->datum);
+    add(q, &z);
+    if (!add(q, &y)) {
+        perror("dogs\n");
+    }
+    printf("%d\n", *((int *) (q->head->datum)));
+    printf("%d\n", *((int *) (q->head->next->datum)));
+    printf("%d\n", *((int *) (q->rear->datum)));
 
     return 0;
 }
