@@ -43,6 +43,7 @@ queue_node_t *dequeue(queue_t *q)
     queue_node_t *r;
     r = q->head;
     q->head = q->head->next;
+    /* Do we need to free ? */
     return r;
 }
 
