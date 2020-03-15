@@ -5,8 +5,8 @@ CFLAGS = -Wall -g -lpthread
 
 ECHO = echo
 
-BIN = shell
-OBJS = Bank.o appserver.o Queue.o
+BIN = bankserver
+OBJS = Bank.o appserver.o queue.o io.o
 
 all: $(BIN)
 

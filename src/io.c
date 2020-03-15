@@ -1,14 +1,18 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "io.h"
+
+
+#define BUFSIZE 64
 
 char *read_line()
 {
     char *line;
     line = NULL;
 
-    ssize_t bufsize = 0;
+    size_t bufsize = 0;
     getline(&line, &bufsize, stdin);
 
     return line;

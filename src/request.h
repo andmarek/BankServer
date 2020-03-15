@@ -12,6 +12,6 @@ typedef struct request {
     transaction_t *transactions; // array of the transaction data
     int num_trans; // number of accounts in transaction
     struct timeval starttime, endtime; // starttime and endtime for TIME
-} request_t
+} request_t;
 
 #endif
