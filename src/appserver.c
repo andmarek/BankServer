@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "Bank.h"
+#include "queue.h"
 
 
 request *parse_request(char **input)

@@ -13,7 +13,7 @@ void queue_init(queue_t *q)
 }
 
 /* Insert a new node into the queue */
-queue_node_t *add(queue_t *q, void *v)
+queue_node_t *enqueue(queue_t *q, void *v)
 {
     printf("Insert node entered.\n");
 
@@ -33,9 +33,20 @@ queue_node_t *add(queue_t *q, void *v)
         q->rear = q->rear->next;
     }
 
-
-
     q->size++;
 
     return n;
+}
+
+queue_node_t *dequeue(queue_t *q)
+{
+    queue_node_t *r;
+    r = q->head;
+    q->head = q->head->next;
+    return r;
+}
+
+queue_node_t *get_front(queue_t *q)
+{
+    return q->head;
 }

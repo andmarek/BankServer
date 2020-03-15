@@ -18,6 +18,8 @@ typedef struct queue {
 } queue_t;
 
 void queue_init(queue_t *q);
-queue_node_t *add(queue_t *q, void *d);
+queue_node_t *enqueue(queue_t *q, void *d);
+queue_node_t *get_front(queue_t *q);
+queue_node_t *dequeue(queue_t *q);
 
 #endif
