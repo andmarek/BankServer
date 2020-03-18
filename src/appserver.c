@@ -52,15 +52,15 @@ void event_loop() {
 
         request_t *r = malloc(sizeof(request_t));
 
-        if (strncmp(argv[0], "CHECK", 2 * sizeof(char))) {
+        if (strncmp(argv[0], "CHECK", 5 ) == 0) {
             // handle balance check
             printf("Handling balance check\n");
             handle_balance_check(argv, r);
-        } else if (strncmp(argv[0], "TRANS", 5 * sizeof(char))) {
+        } else if (strncmp(argv[0], "TRANS", 5 ) == 0) {
             // handle transaction
             printf("Handling transaction\n");
             handle_trans(argv, r);
-        } else if (strncmp(argv[0], "END", 3 * sizeof(char))) {
+        } else if (strncmp(argv[0], "END", 3 ) == 0) {
             // handle exit
             printf("Handling exit\n");
             handle_exit();
