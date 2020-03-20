@@ -6,6 +6,7 @@
 #include "transaction.h"
 
 typedef struct request {
+    char **cmd;
     struct request *next;
     int request_id; // r_id assigned by main thread
     int check_acc_id; // acc_id for CHECK request

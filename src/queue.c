@@ -51,3 +51,12 @@ queue_node_t *get_front(queue_t *q)
 {
     return q->head;
 }
+
+uint8_t is_empty(queue_t *q)
+{
+    if (q->size <= 0) {
+        return 1;
+    }
+
+    return 0;
+}
