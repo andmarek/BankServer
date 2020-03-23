@@ -1,6 +1,5 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
 
 #include "queue.h"
 
@@ -64,21 +63,12 @@ uint8_t is_empty(queue_t *q)
 
 void print_queue(queue_t *q)
 {
-    printf("printing queue\n");
-    char *contents;
-
-    contents = malloc(sizeof(char) * 1000);
-
-
     queue_node_t *cur;
-    cur = q->head;
-
+    cur = head;
 
     while (cur->next != NULL) {
-        strcat(contents, *((char *) (cur->datum)));
+        printf((cur->datum));
         cur = cur->next;
     }
-
-    printf("%s\n", contents);
 }
 

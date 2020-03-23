@@ -1,14 +1,14 @@
 C = gcc
 RM = rm -f
 
-CFLAGS = -Wall -g 
+CFLAGS = -Wall -g
 
 ECHO = echo
 
 LDFLAGS = -pthread
 
 BIN = bankserver
-OBJS = Bank.o appserver.o queue.o io.o
+OBJS = Bank.o appserver.o queue.o
 
 all: $(BIN)
 
