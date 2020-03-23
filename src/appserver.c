@@ -8,14 +8,16 @@
 #include "utils.h"
 #include "queue.h"
 
-void event_loop();
+void *event_loop();
 void *handle_request_thread(void *arg);
 uint8_t handle_balance_check(char **argv, request_t *, queue_node_t *);
 uint8_t handle_trans(char **argv, request_t *);
 void handle_exit(void);
 void print_queue(queue_t *);
-pthread_mutex_t q_lock;
 
+pthread_mutex_t q_lock;
+pthread_cond_t io_cv;
+pthread_cond_t worker_cv;
 
 int main(int argc, char **argv)
 {
@@ -37,6 +39,12 @@ int main(int argc, char **argv)
 
     pthread_mutex_init(&q_lock, NULL); /* Initialize lock */
 
+    /* Create the producer thread */
+    pthread_t io;
+    pthread_create(&io, NULL, event_loop, q);
+
+    pthread_cond_init(&worker_cv, NULL);
+
     pthread_t workers[num_threads];
     for (i = 0; i < num_threads; i++) { /* Create array of worker threads */
         pthread_create(&workers[i], NULL, handle_request_thread, q);
@@ -57,13 +65,15 @@ int main(int argc, char **argv)
         accounts[i].value = 0;
     }
 
+    pthread_join(io, NULL);
 
     /* Everything is good up until here */
+
+    //event_loop(q);
+
     for (i = 0; i < num_threads; i++) {
         pthread_join(workers[i], NULL);
     }
-
-    event_loop(q);
 
     printf("All threads complete\n");
 
@@ -75,41 +85,55 @@ void *handle_request_thread(void *arg)
 
     queue_t *q = (queue_t *) arg;
 
-    while (!is_empty(q)) {
-        printf("Handling this yung request\n");
+    pthread_mutex_lock(&q_lock);
 
-        queue_node_t *n;
-        request_t *r; /* Keep this on the stack since we already allocated for the request in
+    while (is_empty(q)) {
+        pthread_cond_wait(&worker_cv, &q_lock);
+    }
+
+    printf("Handling this yung request\n");
+
+    queue_node_t *n;
+    request_t *r; /* Keep this on the stack since we already allocated for the request in
                      event_loop */
 
-        n = dequeue(q); /* Takes from top of the queue */
-        r = n->datum;
+    n = dequeue(q); /* Takes from top of the queue */
 
-        char **args = r->cmd;
-        printf("args[0] %s\n", args[0]);
+    printf("queue_size after dequeue: %d\n", q->size);
 
-        if (strncmp(args[0], "CHECK", 5 ) == 0) {
-            // handle balance check
-            printf("Handling balance check\n");
-            handle_balance_check(args, r, n);
-        } else if (strncmp(args[0], "TRANS", 5 ) == 0) {
-            // handle transaction
-            printf("Handling transaction\n");
-            handle_trans(args, r);
-        } else if (strncmp(args[0], "END", 3 ) == 0) {
-            // handle exit
-            printf("Handling exit\n");
-            handle_exit();
-        } else {
-            printf("Invalid input: %s\n", r->cmd[0]);
-        }
+    r = n->datum;
+
+    char **args = r->cmd;
+    printf("args[0] %s\n", args[0]);
+
+    if (strncmp(args[0], "CHECK", 5 ) == 0) {
+        // handle balance check
+        printf("Handling balance check\n");
+        handle_balance_check(args, r, n);
+    } else if (strncmp(args[0], "TRANS", 5 ) == 0) {
+        // handle transaction
+        printf("Handling transaction\n");
+        handle_trans(args, r);
+    } else if (strncmp(args[0], "END", 3 ) == 0) {
+        // handle exit
+        printf("Handling exit\n");
+        handle_exit();
+    } else {
+        printf("Invalid input: %s\n", r->cmd[0]);
     }
+
+    if (is_empty(q)) {
+        pthread_cond_broadcast(&io_cv);
+    }
+
+    pthread_mutex_unlock(&q_lock);
+
     return NULL;
 }
 
-void event_loop(queue_t *q)
+void *event_loop(queue_t *q)
 {
-//    pthread_mutex_lock(&q_lock);
+    pthread_mutex_lock(&q_lock);
 
     char *line;
     char **args;
@@ -127,13 +151,22 @@ void event_loop(queue_t *q)
         r->cmd = args;
 //        printf("args[0] %s\n", args[0]);
 
+
+//        print_queue(q);
+
+
+        while (!is_empty(q)) {
+            pthread_cond_wait(&io_cv, &q_lock);
+        }
+
         enqueue(q, r); /* Put into queue q with r as the datum */
-
-        print_queue(q);
-
         id++;
 
-        usleep(1);
+        pthread_cond_broadcast(&worker_cv);
+
+        pthread_mutex_unlock(&q_lock);
+
+        //usleep(1); doesn't do anything I am sure
     } while (1);
 
 }
@@ -141,9 +174,8 @@ void event_loop(queue_t *q)
 /* On success, return 1 */
 uint8_t handle_balance_check(char **argv, request_t *r, queue_node_t *n)
 {
-    printf("This is a test\n");
-    //n->datum = argv;
-    printf("argv[0]: %s\n", argv[1]);
+    printf("argv[0]: %s\n", argv[0]);
+    printf("----------\n");
     return 0;
 }
 
@@ -171,7 +203,9 @@ void print_queue(queue_t *q)
 
     while (cur->next != NULL) {
         strcat(contents, ((request_t *) cur->datum)->cmd[0]);
-        strcat(contents, ((request_t *) cur->datum)->cmd[1]);
+        if (((request_t *) cur->datum)->cmd[1]) {
+            strcat(contents, ((request_t *) cur->datum)->cmd[1]);
+        }
         cur = cur->next;
     }
 
