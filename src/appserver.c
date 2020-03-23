@@ -13,7 +13,7 @@ void *handle_request_thread(void *arg);
 uint8_t handle_balance_check(char **argv, request_t *, queue_node_t *);
 uint8_t handle_trans(char **argv, request_t *);
 void handle_exit(void);
-
+void print_queue(queue_t *);
 pthread_mutex_t q_lock;
 
 
@@ -53,7 +53,7 @@ int main(int argc, char **argv)
     }
 
     for (i = 0; i < num_accounts; i++) {
-        pthread_mutex_init(&(accounts[i].lock, NULL)); /* Each account has their own mutex! */
+        pthread_mutex_init(&(accounts[i].lock), NULL); /* Each account has their own mutex! */
         accounts[i].value = 0;
     }
 
@@ -156,4 +156,24 @@ uint8_t handle_trans(char **argv, request_t *r)
 void handle_exit(void)
 {
     printf("Exiting. . .\n");
+}
+
+/* For debugging */
+void print_queue(queue_t *q)
+{
+    printf("printing queue\n");
+    char *contents;
+
+    contents = malloc(sizeof(char) * 1000);
+
+    queue_node_t *cur;
+    cur = q->head;
+
+    while (cur->next != NULL) {
+        strcat(contents, ((request_t *) cur->datum)->cmd[0]);
+        strcat(contents, ((request_t *) cur->datum)->cmd[1]);
+        cur = cur->next;
+    }
+
+    printf("Contents: %s \n", contents);
 }

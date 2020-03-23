@@ -61,7 +61,7 @@ uint8_t is_empty(queue_t *q)
 
     return 0;
 }
-
+/*
 void print_queue(queue_t *q)
 {
     printf("printing queue\n");
@@ -69,16 +69,15 @@ void print_queue(queue_t *q)
 
     contents = malloc(sizeof(char) * 1000);
 
-
     queue_node_t *cur;
     cur = q->head;
 
 
     while (cur->next != NULL) {
-        strcat(contents, *((char *) (cur->datum)));
+        strcat(contents, (cur->datum));
         cur = cur->next;
     }
 
-    printf("%s\n", contents);
+    printf("Contents: %s \n", contents);
 }
-
+*/
