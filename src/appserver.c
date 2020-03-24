@@ -12,7 +12,7 @@
 void *event_loop();
 void *handle_request_thread(void *arg);
 uint8_t handle_balance_check(char **argv, queue_node_t *);
-uint8_t handle_trans(char **argv, request_t *);
+uint8_t handle_trans(char **argv, queue_node_t *);
 void handle_exit(void);
 void print_queue(queue_t *);
 
@@ -110,7 +110,7 @@ void *handle_request_thread(void *arg)
         handle_balance_check(args, n);
     } else if (strncmp(args[0], "TRANS", 5 ) == 0) {
         printf("Handling transaction\n");
-        handle_trans(args, r);
+        handle_trans(args, n);
     } else if (strncmp(args[0], "END", 3 ) == 0) {
         printf("Handling exit\n");
         handle_exit();
@@ -163,7 +163,6 @@ void *event_loop(queue_t *q)
 
 uint8_t handle_balance_check(char **argv, queue_node_t *n)
 {
-
     int balance;
     int acc_id;
     int req_id;
@@ -177,36 +176,39 @@ uint8_t handle_balance_check(char **argv, queue_node_t *n)
 
     printf("< ID %d\n", req_id);
 
-    /* we make a string with the following
-        - request id
-        - balance of the account
-        - time stuff
-     */
-
-
     char *message = malloc(sizeof(char) * 50);
 
     gettimeofday(&t, NULL);
 
     r->endtime = t;
 
-    //printf("TIME %ld.%06.ld\n", t.tv_sec, t.tv_usec);
-    fprintf(f, "dogs\n");
     fprintf(f, "%d BAL %d TIME %ld.%06.ld %ld.%06.ld \n", req_id, balance, r->starttime.tv_sec,
             r->starttime.tv_usec, r->endtime.tv_sec, r->endtime.tv_usec);
     printf("%s\n", message);
 
     fflush(f);
 
-    //fwrite(message);
-
     printf("----------\n");
     return 0;
 }
 
 /* On success, return 1 */
-uint8_t handle_trans(char **argv, request_t *r)
+uint8_t handle_trans(char **argv, queue_node_t *n)
 {
+    printf("what");
+    int acc_id;
+    int req_id;
+    char *i;
+
+    request_t *r = (request_t *)(n->datum);
+
+    for (i = r->cmd[0]; i; i++) {
+        printf("%s", i);
+    }
+
+
+
+
     return 0;
 }
 
