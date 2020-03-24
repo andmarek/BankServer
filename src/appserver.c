@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/time.h>
 
 #include "Bank.h"
 #include "utils.h"
@@ -15,6 +16,8 @@ uint8_t handle_trans(char **argv, request_t *);
 void handle_exit(void);
 void print_queue(queue_t *);
 
+FILE *f;
+struct timeval t;
 pthread_mutex_t q_lock;
 pthread_cond_t io_cv;
 pthread_cond_t worker_cv;
@@ -26,8 +29,6 @@ int main(int argc, char **argv)
     int i;
     int num_threads, num_accounts;
     uint8_t end; /* Determines if we exit */
-    FILE *f;
-    struct timeval time;
     queue_t *q;
 
     num_threads = atoi(argv[1]);
@@ -78,12 +79,13 @@ int main(int argc, char **argv)
 
     printf("All threads complete\n");
 
+    fclose(f);
+
     return 0;
 }
 
 void *handle_request_thread(void *arg)
 {
-
     queue_t *q = (queue_t *) arg;
 
     pthread_mutex_lock(&q_lock);
@@ -92,21 +94,19 @@ void *handle_request_thread(void *arg)
         pthread_cond_wait(&io_cv, &q_lock);
     }
 
-    printf("Handling this yung request\n");
+    printf("---Handling request---\n");
 
     queue_node_t *n;
     request_t *r;
 
     n = dequeue(q);
 
-    printf("queue_size after dequeue: %d\n", q->size);
-
     r = n->datum;
 
     char **args = r->cmd;
 
     if (strncmp(args[0], "CHECK", 5 ) == 0) {
-        printf("Handling balance check\n");
+        printf("---Handling balance check---\n");
         handle_balance_check(args, n);
     } else if (strncmp(args[0], "TRANS", 5 ) == 0) {
         printf("Handling transaction\n");
@@ -132,15 +132,21 @@ void *event_loop(queue_t *q)
     int id = 1;
 
     do {
+
         printf("> ");
+
+        fflush(stdout);
 
         line = read_line();
         args = split_line(line);
 
         queue_node_t *n;
 
+        gettimeofday(&t, NULL);
+
         request_t *r = malloc(sizeof(request_t));
         r->cmd = args; r->request_id = id;
+        r->starttime = t;
 
         enqueue(q, r);
 
@@ -149,6 +155,7 @@ void *event_loop(queue_t *q)
         pthread_cond_broadcast(&io_cv);
 
         pthread_mutex_unlock(&q_lock);
+
 
     } while (1);
 
@@ -160,6 +167,7 @@ uint8_t handle_balance_check(char **argv, queue_node_t *n)
     int balance;
     int acc_id;
     int req_id;
+    request_t *r = (request_t *)(n->datum);
 
     acc_id = atoi(argv[1]);
 
@@ -175,11 +183,22 @@ uint8_t handle_balance_check(char **argv, queue_node_t *n)
         - time stuff
      */
 
+
     char *message = malloc(sizeof(char) * 50);
 
-    sprintf(message, "%d BAL %d \n", req_id, balance);
+    gettimeofday(&t, NULL);
+
+    r->endtime = t;
+
+    //printf("TIME %ld.%06.ld\n", t.tv_sec, t.tv_usec);
+    fprintf(f, "dogs\n");
+    fprintf(f, "%d BAL %d TIME %ld.%06.ld %ld.%06.ld \n", req_id, balance, r->starttime.tv_sec,
+            r->starttime.tv_usec, r->endtime.tv_sec, r->endtime.tv_usec);
     printf("%s\n", message);
 
+    fflush(f);
+
+    //fwrite(message);
 
     printf("----------\n");
     return 0;

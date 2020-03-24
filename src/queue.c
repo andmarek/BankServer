@@ -16,7 +16,6 @@ void queue_init(queue_t *q)
 /* Insert a new node into the queue */
 queue_node_t *enqueue(queue_t *q, void *v)
 {
-    printf("Insert node entered.\n");
 
     queue_node_t *n;
     n =  malloc(sizeof(queue_node_t));
@@ -26,7 +25,6 @@ queue_node_t *enqueue(queue_t *q, void *v)
 
     /* If our list is empty */
     if (!q->head) {
-        printf("Head was empty\n");
         q->head = n;
         q->rear = n;
     } else {
