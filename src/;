@@ -10,7 +10,7 @@
 
 void *event_loop();
 void *handle_request_thread(void *arg);
-uint8_t handle_balance_check(char **argv, queue_node_t *);
+uint8_t handle_balance_check(char **argv, request_t *, queue_node_t *);
 uint8_t handle_trans(char **argv, request_t *);
 void handle_exit(void);
 void print_queue(queue_t *);
@@ -65,11 +65,6 @@ int main(int argc, char **argv)
         accounts[i].value = 0;
     }
 
-/*** TESTING 123 */
-    write_account(1, 5);
-
-/***/
-
     pthread_join(io, NULL);
 
     for (i = 0; i < num_threads; i++) {
@@ -107,7 +102,7 @@ void *handle_request_thread(void *arg)
 
     if (strncmp(args[0], "CHECK", 5 ) == 0) {
         printf("Handling balance check\n");
-        handle_balance_check(args, n);
+        handle_balance_check(args, r, n);
     } else if (strncmp(args[0], "TRANS", 5 ) == 0) {
         printf("Handling transaction\n");
         handle_trans(args, r);
@@ -117,6 +112,10 @@ void *handle_request_thread(void *arg)
     } else {
         printf("Invalid input: %s\n", r->cmd[0]);
     }
+
+/*    if (is_empty(q)) {
+        pthread_cond_broadcast(&io_cv);
+    }*/
 
     pthread_mutex_unlock(&q_lock);
 
@@ -129,7 +128,7 @@ void *event_loop(queue_t *q)
 
     char *line;
     char **args;
-    int id = 1;
+    int id = 0;
 
     do {
         printf("> ");
@@ -140,7 +139,7 @@ void *event_loop(queue_t *q)
         queue_node_t *n;
 
         request_t *r = malloc(sizeof(request_t));
-        r->cmd = args; r->request_id = id;
+        r->cmd = args;
 
         enqueue(q, r);
 
@@ -154,33 +153,10 @@ void *event_loop(queue_t *q)
 
 }
 
-uint8_t handle_balance_check(char **argv, queue_node_t *n)
+uint8_t handle_balance_check(char **argv, request_t *r, queue_node_t *n)
 {
 
-    int balance;
-    int acc_id;
-    int req_id;
-
-    acc_id = atoi(argv[1]);
-
-    balance = read_account(acc_id);
-
-    req_id = ((request_t *) n->datum)->request_id;
-
-    printf("< ID %d\n", req_id);
-
-    /* we make a string with the following
-        - request id
-        - balance of the account
-        - time stuff
-     */
-
-    char *message = malloc(sizeof(char) * 50);
-
-    sprintf(message, "%d BAL %d \n", req_id, balance);
-    printf("%s\n", message);
-
-
+    printf("< ID %d\n", ((request_t *) n->datum)->request_id);
     printf("----------\n");
     return 0;
 }

@@ -8,7 +8,7 @@ ECHO = echo
 LDFLAGS = -pthread
 
 BIN = bankserver
-OBJS = Bank.o appserver.o queue.o
+OBJS = Bank.o appserver.o queue.o utils.o
 
 all: $(BIN)
 
