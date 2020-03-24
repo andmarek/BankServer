@@ -13,22 +13,22 @@ void *event_loop();
 void *handle_request_thread(void *arg);
 uint8_t handle_balance_check(char **argv, queue_node_t *);
 uint8_t handle_trans(char **argv, queue_node_t *);
-void handle_exit(void);
+uint8_t handle_exit(void);
 void print_queue(queue_t *);
 
 FILE *f;
 struct timeval t;
+account_t *accounts;
+uint8_t end; /* Determines if we exit */
 pthread_mutex_t q_lock;
 pthread_cond_t io_cv;
 pthread_cond_t worker_cv;
 
 int main(int argc, char **argv)
 {
-    account_t *accounts;
     const char *responses;
     int i;
     int num_threads, num_accounts;
-    uint8_t end; /* Determines if we exit */
     queue_t *q;
 
     num_threads = atoi(argv[1]);
@@ -113,7 +113,7 @@ void *handle_request_thread(void *arg)
         handle_trans(args, n);
     } else if (strncmp(args[0], "END", 3 ) == 0) {
         printf("Handling exit\n");
-        handle_exit();
+        end = handle_exit();
     } else {
         printf("Invalid input: %s\n", r->cmd[0]);
     }
@@ -157,7 +157,7 @@ void *event_loop(queue_t *q)
         pthread_mutex_unlock(&q_lock);
 
 
-    } while (1);
+    } while (!end);
 
 }
 
@@ -170,7 +170,9 @@ uint8_t handle_balance_check(char **argv, queue_node_t *n)
 
     acc_id = atoi(argv[1]);
 
+//    pthread_mutex_lock(&accounts[acc_id]);
     balance = read_account(acc_id);
+//    pthread_mutex_unlock(&accounts[acc_id]);
 
     req_id = ((request_t *) n->datum)->request_id;
 
@@ -198,23 +200,23 @@ uint8_t handle_trans(char **argv, queue_node_t *n)
     printf("what");
     int acc_id;
     int req_id;
-    char *i;
+    int i;
 
     request_t *r = (request_t *)(n->datum);
 
-    for (i = r->cmd[0]; i; i++) {
-        printf("%s", i);
+    i = 1;
+    while (r->cmd[i] != NULL) {
+        printf("ya: %s\n", r->cmd[i]);
+        i++;
     }
-
-
-
 
     return 0;
 }
 
-void handle_exit(void)
+uint8_t handle_exit(void)
 {
     printf("Exiting. . .\n");
+    return 1;
 }
 
 /* For debugging */
