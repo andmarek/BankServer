@@ -68,14 +68,14 @@ int main(int argc, char **argv)
         accounts[i].value = 0;
     }
 
-/*** TESTING 123 */
+    /*** TESTING 123 */
     write_account(1, 5);
     accounts[0].value = 5;
 
     write_account(2, 8);
     accounts[1].value = 5;
 
-/***/
+    /***/
 
     pthread_join(io, NULL);
 
@@ -178,22 +178,22 @@ uint8_t handle_balance_check(char **argv, queue_node_t *n)
 
     acc_id = atoi(argv[1]);
 
-//    pthread_mutex_lock(&accounts[acc_id]);
+    //    pthread_mutex_lock(&accounts[acc_id]);
     balance = read_account(acc_id);
-//    pthread_mutex_unlock(&accounts[acc_id]);
+    //    pthread_mutex_unlock(&accounts[acc_id]);
 
     req_id = ((request_t *) n->datum)->request_id;
 
     printf("< ID %d\n", req_id);
 
-     message = malloc(sizeof(char) * 50);
+    message = malloc(sizeof(char) * 50);
 
     gettimeofday(&t, NULL);
 
     r->endtime = t;
 
-    fprintf(f, "%d BAL %d TIME %ld.%06.ld %ld.%06.ld \n", req_id, balance, r->starttime.tv_sec,
-            r->starttime.tv_usec, r->endtime.tv_sec, r->endtime.tv_usec);
+    fprintf(f, "%d BAL %d TIME %ld.%06.ld %ld.%06.ld \n", req_id, balance, (long) r->starttime.tv_sec,
+            (long) r->starttime.tv_usec, (long) r->endtime.tv_sec, (long) r->endtime.tv_usec);
     printf("%s\n", message);
 
     fflush(f);
@@ -255,16 +255,16 @@ int process_trans(request_t *r, int trans_size)
     int id; // id of particular transaction
     int acc_balance; // account balance of transacting acc
     int write_val; // the amount we are writing to the account
-    transaction_t *t = (r->transactions);
+    transaction_t *tr = (r->transactions);
 
     for (i = 0; i < trans_size; i++) {
         pthread_mutex_lock(&accounts[i].lock);
 
-        acc_balance = accounts[t[i].acc_id].value; // we assume acc list is origanized by id
+        acc_balance = accounts[tr[i].acc_id].value; // we assume acc list is origanized by id
 
-        trans_amount = t[i].amount; // amount recorded from trans
+        trans_amount = tr[i].amount; // amount recorded from trans
 
-        id = t[i].acc_id; // id recorded from trans
+        id = tr[i].acc_id; // id recorded from trans
 
         /* Check if the account has enough funds to withdrawal */
 
@@ -272,8 +272,8 @@ int process_trans(request_t *r, int trans_size)
         if (trans_amount < 0 && (acc_balance + trans_amount < 0)) {
             printf("------Not enough funds in account %d-----\n", i);
 
-            fprintf(f, "%d ISF TIME %ld.%06.ld %ld.%06.ld \n", r->request_id, r->starttime.tv_sec,
-                    r->starttime.tv_usec, r->endtime.tv_sec, r->endtime.tv_usec);
+            fprintf(f, "%d ISF TIME %ld.%06.ld %ld.%06.ld \n", r->request_id, (long) r->starttime.tv_sec,
+                    (long) r->starttime.tv_usec, (long) r->endtime.tv_sec, (long) r->endtime.tv_usec);
 
             fflush(f);
             return 1;
@@ -286,8 +286,8 @@ int process_trans(request_t *r, int trans_size)
 
             gettimeofday(&t, NULL);
 
-            fprintf(f, "%d OK TIME %ld.%06.ld %ld.%06.ld \n", r->request_id, r->starttime.tv_sec,
-                    r->starttime.tv_usec, r->endtime.tv_sec, r->endtime.tv_usec);
+            fprintf(f, "%d OK TIME %ld.%06.ld %ld.%06.ld \n", r->request_id, (long) r->starttime.tv_sec,
+                   (long) r->starttime.tv_usec, (long) r->endtime.tv_sec, (long) r->endtime.tv_usec);
 
 
             fflush(f);
@@ -327,9 +327,9 @@ void print_queue(queue_t *q)
 }
 
 /*
-int initialize_accounts_wrapper(int num_accounts)
-{
-    for (i = 0; i < num_accounts) {
-        accounts[i].value = BANK_accounts[i];
-    }
-} */
+   int initialize_accounts_wrapper(int num_accounts)
+   {
+   for (i = 0; i < num_accounts) {
+   accounts[i].value = BANK_accounts[i];
+   }
+   } */
