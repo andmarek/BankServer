@@ -276,7 +276,10 @@ int perform_transactions(transaction_t *t, int trans_size)
         printf("id: %d\n", id);
 
         /* Check if the account has enough funds to withdrawal */
-        if (trans_amount < 0 && acc_balance - trans_amount < 0) {
+
+        printf("trans amount %d, acc bal %d\n", trans_amount, acc_balance);
+        // trans amount could be negative
+        if (trans_amount < 0 && (acc_balance + trans_amount < 0)) {
             printf("------Not enough fundE in account %d-----\n", i);
             return 1;
         } else {
