@@ -194,21 +194,56 @@ uint8_t handle_balance_check(char **argv, queue_node_t *n)
     return 0;
 }
 
+
+/*trash ass code*/
 /* On success, return 1 */
 uint8_t handle_trans(char **argv, queue_node_t *n)
 {
-    printf("what");
     int acc_id;
     int req_id;
-    int i;
+    int i, j, k;
+    int size;
 
     request_t *r = (request_t *)(n->datum);
 
     i = 1;
+    size = 0;
+
+    /* We're just doing this to get the size for now */
     while (r->cmd[i] != NULL) {
-        printf("ya: %s\n", r->cmd[i]);
-        i++;
+        size++; // could be the cause of some problems.
+        i++; /* Iterator for our thing */
     }
+
+    /* Size should be divisible by 2 with valid input */
+    r->transactions = malloc(sizeof(transaction_t) * size/2);
+
+    i = 2; // iterating per account_id
+    j = 1; // iterating per amount
+    k = 0; // iterating the transactions array in the request
+    while (r->cmd[i] != NULL) {
+        printf("r->cmd[i]: %s\n", r->cmd[j]);
+
+        printf("value of j %d\n", j);
+        printf("value of i %d\n", i);
+
+        r->transactions[k].acc_id =atoi(r->cmd[j]);
+        printf("what what \n");
+        r->transactions[k].amount = atoi(r->cmd[i]);
+
+        k++;
+        j+=2;
+        i+=2;
+    }
+
+
+    printf("trans acc_id after: %d\n", r->transactions[0].acc_id);
+    printf("trans acc_id after: %d\n", r->transactions[1].acc_id);
+    printf("trans acc_id after: %d\n", r->transactions[2].acc_id);
+
+    printf("trans acc_id after: %d\n", r->transactions[0].amount);
+    printf("trans acc_id after: %d\n", r->transactions[1].amount);
+    printf("trans acc_id after: %d\n", r->transactions[2].amount);
 
     return 0;
 }
