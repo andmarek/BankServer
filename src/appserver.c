@@ -15,6 +15,7 @@ uint8_t handle_balance_check(char **argv, queue_node_t *);
 uint8_t handle_trans(char **argv, queue_node_t *);
 uint8_t handle_exit(void);
 void print_queue(queue_t *);
+int perform_transactions(transaction_t *, int);
 
 FILE *f;
 struct timeval t;
@@ -68,6 +69,7 @@ int main(int argc, char **argv)
 
 /*** TESTING 123 */
     write_account(1, 5);
+    accounts[1].value = 5;
 
 /***/
 
@@ -166,6 +168,7 @@ uint8_t handle_balance_check(char **argv, queue_node_t *n)
     int balance;
     int acc_id;
     int req_id;
+    char *message;
     request_t *r = (request_t *)(n->datum);
 
     acc_id = atoi(argv[1]);
@@ -178,7 +181,7 @@ uint8_t handle_balance_check(char **argv, queue_node_t *n)
 
     printf("< ID %d\n", req_id);
 
-    char *message = malloc(sizeof(char) * 50);
+     message = malloc(sizeof(char) * 50);
 
     gettimeofday(&t, NULL);
 
@@ -227,7 +230,8 @@ uint8_t handle_trans(char **argv, queue_node_t *n)
         printf("value of j %d\n", j);
         printf("value of i %d\n", i);
 
-        r->transactions[k].acc_id =atoi(r->cmd[j]);
+        printf("acc_id parsed from trans %d\n", atoi(r->cmd[j]));
+        r->transactions[k].acc_id = atoi(r->cmd[j]);
         printf("what what \n");
         r->transactions[k].amount = atoi(r->cmd[i]);
 
@@ -236,7 +240,7 @@ uint8_t handle_trans(char **argv, queue_node_t *n)
         i+=2;
     }
 
-
+/* Testing */
     printf("trans acc_id after: %d\n", r->transactions[0].acc_id);
     printf("trans acc_id after: %d\n", r->transactions[1].acc_id);
     printf("trans acc_id after: %d\n", r->transactions[2].acc_id);
@@ -244,6 +248,44 @@ uint8_t handle_trans(char **argv, queue_node_t *n)
     printf("trans acc_id after: %d\n", r->transactions[0].amount);
     printf("trans acc_id after: %d\n", r->transactions[1].amount);
     printf("trans acc_id after: %d\n", r->transactions[2].amount);
+/* Testing */
+
+    perform_transactions(r->transactions, k);
+
+
+    return 0;
+}
+
+int perform_transactions(transaction_t *t, int trans_size)
+{
+    int i;
+    int trans_amount;
+    int id;
+    int acc_balance;
+
+    for (i = 0; i < trans_size; i++) {
+        pthread_mutex_lock(&accounts[i].lock);
+
+        acc_balance = accounts[t[i].acc_id].value;
+        trans_amount = t[i].amount;
+        printf("account balance");
+        id = t[i].acc_id;
+
+        /* Check if the account has enough funds to withdrawal */
+        if (trans_amount < 0 && accounts[i].value - trans_amount < 0) {
+            printf("Not enough funds in account %d\n", i);
+            return 1;
+        } else {
+            printf("trans_amount %d\n", trans_amount);
+            write_account(id, trans_amount);
+            accounts[i].value = read_account(id);
+        }
+        printf("post trans account[0] value: %d\n", accounts[1].value);
+
+        //if (r->transactions[i].)
+
+        pthread_mutex_unlock(&accounts[i].lock);
+    }
 
     return 0;
 }
