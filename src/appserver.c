@@ -221,11 +221,11 @@ uint8_t handle_trans(char **argv, queue_node_t *n)
     /* Size should be divisible by 2 with valid input */
     r->transactions = malloc(sizeof(transaction_t) * size/2);
 
-    i = 2; // iterating per account_id
-    j = 1; // iterating per amount
     k = 0; // iterating the transactions array in the request
+    j = 1; // iterating per account_id
+    i = 2; // iterating per amount
     while (r->cmd[i] != NULL) {
-        printf("r->cmd[i]: %s\n", r->cmd[j]);
+        printf("r->cmd[j]: %s\n", r->cmd[j]);
 
         printf("value of j %d\n", j);
         printf("value of i %d\n", i);
@@ -242,12 +242,12 @@ uint8_t handle_trans(char **argv, queue_node_t *n)
 
 /* Testing */
     printf("trans acc_id after: %d\n", r->transactions[0].acc_id);
-    printf("trans acc_id after: %d\n", r->transactions[1].acc_id);
-    printf("trans acc_id after: %d\n", r->transactions[2].acc_id);
+//    printf("trans acc_id after: %d\n", r->transactions[1].acc_id);
+//    printf("trans acc_id after: %d\n", r->transactions[2].acc_id);
 
     printf("trans acc_id after: %d\n", r->transactions[0].amount);
-    printf("trans acc_id after: %d\n", r->transactions[1].amount);
-    printf("trans acc_id after: %d\n", r->transactions[2].amount);
+ //   printf("trans acc_id after: %d\n", r->transactions[1].amount);
+ //   printf("trans acc_id after: %d\n", r->transactions[2].amount);
 /* Testing */
 
     perform_transactions(r->transactions, k);
@@ -258,31 +258,40 @@ uint8_t handle_trans(char **argv, queue_node_t *n)
 
 int perform_transactions(transaction_t *t, int trans_size)
 {
-    int i;
-    int trans_amount;
-    int id;
-    int acc_balance;
+    int i; // iterator for transactions
+    int trans_amount; // amount we are sending or deducting
+    int id; // id of particular transaction
+    int acc_balance; // account balance of transacting acc
+    int write_val; // the amount we are writing to the account
 
     for (i = 0; i < trans_size; i++) {
         pthread_mutex_lock(&accounts[i].lock);
 
-        acc_balance = accounts[t[i].acc_id].value;
+        acc_balance = accounts[t[i].acc_id].value; // we assume acc list is origanized by id
+
+        printf("trans acc id value %d\n", accounts[t[i].acc_id].value);
+
         trans_amount = t[i].amount;
-        printf("account balance");
         id = t[i].acc_id;
+        printf("id: %d\n", id);
 
         /* Check if the account has enough funds to withdrawal */
-        if (trans_amount < 0 && accounts[i].value - trans_amount < 0) {
-            printf("Not enough funds in account %d\n", i);
+        if (trans_amount < 0 && acc_balance - trans_amount < 0) {
+            printf("------Not enough fundE in account %d-----\n", i);
             return 1;
         } else {
             printf("trans_amount %d\n", trans_amount);
-            write_account(id, trans_amount);
-            accounts[i].value = read_account(id);
-        }
-        printf("post trans account[0] value: %d\n", accounts[1].value);
+            printf("trans id %d\n", id);
 
-        //if (r->transactions[i].)
+            write_val = trans_amount + acc_balance;
+            write_account(id, write_val);
+
+            printf("write val %d\n", write_val);
+
+            accounts[id].value = read_account(id);
+        }
+        printf("post trans account[0] value: %d\n", accounts[0].value);
+        printf("post trans account[1] value: %d\n", accounts[1].value);
 
         pthread_mutex_unlock(&accounts[i].lock);
     }
