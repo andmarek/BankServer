@@ -108,6 +108,7 @@ void *event_loop(queue_t *q)
     queue_node_t *n;
 
     while (!end) {
+
         printf("> ");
 
         fflush(stdout);
@@ -118,11 +119,11 @@ void *event_loop(queue_t *q)
 
         gettimeofday(&t, NULL);
 
+        pthread_mutex_lock(&q_lock);
         request_t *r = malloc(sizeof(request_t));
         r->cmd = args; r->request_id = id;
         r->starttime = t;
 
-        pthread_mutex_lock(&q_lock);
         /* I think we may need to wait here */
         enqueue(q, r);
 
@@ -158,7 +159,6 @@ void *handle_request_thread(void *arg)
 
     char **args = r->cmd;
 
-    pthread_mutex_unlock(&q_lock);
 
     if (strncasecmp(args[0], "CHECK", 5 ) == 0) {
         printf("---Handling balance check---\n");
@@ -173,7 +173,7 @@ void *handle_request_thread(void *arg)
         printf("Invalid input: %s\n", r->cmd[0]);
     }
 
-
+    pthread_mutex_unlock(&q_lock);
     return NULL;
 }
 
