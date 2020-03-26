@@ -9,8 +9,8 @@
 #include "utils.h"
 #include "queue.h"
 
-static void     *event_loop();
-static void     *handle_request_thread(void *);
+static void *    event_loop();
+static void *    handle_request_thread(void *);
 static uint8_t   handle_balance_check(char **argv, queue_node_t *);
 static uint8_t   handle_trans(char **argv, queue_node_t *);
 static int       process_trans(request_t *, int);
@@ -51,7 +51,7 @@ main(int argc, char **argv)
         pthread_cond_init(&worker_cv, NULL);
 
         for (i = 0; i < num_threads; i++) {
-            pthread_create(&workers[i], NULL, handle_request_thread, q);
+                pthread_create(&workers[i], NULL, handle_request_thread, q);
         }
 
         f = fopen(responses, "a");
@@ -59,19 +59,19 @@ main(int argc, char **argv)
         accounts = malloc(num_accounts * sizeof(account_t));
 
         if (!initialize_accounts(num_accounts)) { /* We might need to lock some shit here */
-            printf("Error: initialize accounts failed");
-            return 1;
+                printf("Error: initialize accounts failed");
+                return 1;
         }
 
         for (i = 0; i < num_accounts; i++) {
-            pthread_mutex_init(&(accounts[i].lock), NULL); /* Each account has their own mutex! */
-            accounts[i].value = 0;
+                pthread_mutex_init(&(accounts[i].lock), NULL); /* Each account has their own mutex! */
+                accounts[i].value = 0;
         }
 
         pthread_join(io, NULL);
 
         for (i = 0; i < num_threads; i++) {
-            pthread_join(workers[i], NULL);
+                pthread_join(workers[i], NULL);
         }
 
         fclose(f);
@@ -79,7 +79,7 @@ main(int argc, char **argv)
         return 0;
 }
 
-void *
+static void *
 event_loop(queue_t *q)
 {
         char         **args;
@@ -120,7 +120,7 @@ event_loop(queue_t *q)
         return NULL;
 }
 
-void *
+static void *
 handle_request_thread(void *arg)
 {
         while (!end) {
@@ -131,7 +131,7 @@ handle_request_thread(void *arg)
                 pthread_mutex_lock(&q_lock);
 
                 while (is_empty(q))
-                    pthread_cond_wait(&worker_cv, &q_lock);
+                        pthread_cond_wait(&worker_cv, &q_lock);
 
 
                 printf("---Handling request---\n");
@@ -162,20 +162,24 @@ handle_request_thread(void *arg)
 }
 
 
-
-uint8_t handle_balance_check(char **argv, queue_node_t *n)
+static uint8_t
+handle_balance_check(char **argv, queue_node_t *n)
 {
         int balance;
         int acc_id;
         int req_id;
         char *message;
-        request_t *r = (request_t *)(n->datum);
+        request_t *r;
+
+        r = (request_t *)(n->datum);
 
         acc_id = atoi(argv[1]);
 
-        //    pthread_mutex_lock(&accounts[acc_id]);
+        pthread_mutex_lock(&accounts[acc_id].lock);
+
         balance = read_account(acc_id);
-        //    pthread_mutex_unlock(&accounts[acc_id]);
+
+        pthread_mutex_unlock(&accounts[acc_id].lock);
 
         req_id = ((request_t *) n->datum)->request_id;
 
@@ -198,6 +202,7 @@ uint8_t handle_balance_check(char **argv, queue_node_t *n)
         fflush(f);
 
         printf("----------\n");
+
         return 0;
 }
 
@@ -211,16 +216,17 @@ handle_trans(char **argv, queue_node_t *n)
         int req_id;
         int i, j, k;
         int size;
+        request_t *r;
 
-        request_t *r = (request_t *)(n->datum);
 
         i = 1;
         size = 0;
+        r = (request_t *)(n->datum);
 
         /* We're just doing this to get the size for now */
         while (r->cmd[i] != NULL) {
-            size++; // could be the cause of some problems.
-            i++; /* Iterator for our thing */
+                size++; // could be the cause of some problems.
+                i++; /* Iterator for our thing */
         }
 
         /* Size should be divisible by 2 with valid input */
@@ -239,7 +245,7 @@ handle_trans(char **argv, queue_node_t *n)
         }
 
         if (process_trans(r, k)) {
-                printf("error processing transactions");
+                printf("Error processing transactions");
                 return 1;
         }
 
@@ -261,54 +267,55 @@ process_trans(request_t *r, int trans_size)
         transaction_t *tr = (r->transactions);
 
         for (i = 0; i < trans_size; i++) {
-            pthread_mutex_lock(&accounts[i].lock);
+                pthread_mutex_lock(&accounts[i].lock);
 
-            acc_balance = accounts[tr[i].acc_id].value; // we assume acc list is origanized by id
+                acc_balance = accounts[tr[i].acc_id].value; // we assume acc list is origanized by id
 
-            trans_amount = tr[i].amount; // amount recorded from trans
+                trans_amount = tr[i].amount; // amount recorded from trans
 
-            id = tr[i].acc_id; // id recorded from trans
+                id = tr[i].acc_id; // id recorded from trans
 
-            /* Check if the account has enough funds to withdrawal */
+                /* Check if the account has enough funds to withdrawal */
 
-            // trans amount could be negative
-            if (trans_amount < 0 && (acc_balance + trans_amount < 0)) {
-                printf("------Not enough funds in account %d-----\n", i);
+                // trans amount could be negative
+                if (trans_amount < 0 && (acc_balance + trans_amount < 0)) {
+                        printf("------Not enough funds in account %d-----\n", i);
 
-                flockfile(f);
+                        flockfile(f);
 
-                fprintf(f, "%d ISF TIME %ld.%06.ld %ld.%06.ld \n", r->request_id, (long) r->starttime.tv_sec,
-                        (long) r->starttime.tv_usec, (long) r->endtime.tv_sec, (long) r->endtime.tv_usec);
+                        fprintf(f, "%d ISF TIME %ld.%06.ld %ld.%06.ld \n", r->request_id, (long) r->starttime.tv_sec,
+                                (long) r->starttime.tv_usec, (long) r->endtime.tv_sec, (long) r->endtime.tv_usec);
 
-                funlockfile(f);
+                        funlockfile(f);
 
-                fflush(f);
-                return 1;
-            } else {
-                write_val = trans_amount + acc_balance;
+                        fflush(f);
 
-                write_account(id, write_val);
+                        return 1;
+                } else {
+                        write_val = trans_amount + acc_balance;
 
-                accounts[id].value = read_account(id);
+                        write_account(id, write_val);
 
-                gettimeofday(&t, NULL);
+                        accounts[id].value = read_account(id);
 
-                flockfile(f);
+                        gettimeofday(&t, NULL);
 
-                fprintf(f, "%d OK TIME %ld.%06.ld %ld.%06.ld \n", r->request_id, (long) r->starttime.tv_sec,
-                       (long) r->starttime.tv_usec, (long) r->endtime.tv_sec, (long) r->endtime.tv_usec);
+                        flockfile(f);
 
-                funlockfile(f);
+                        fprintf(f, "%d OK TIME %ld.%06.ld %ld.%06.ld \n", r->request_id, (long) r->starttime.tv_sec,
+                               (long) r->starttime.tv_usec, (long) r->endtime.tv_sec, (long) r->endtime.tv_usec);
 
-                fflush(f);
-            }
-            pthread_mutex_unlock(&accounts[i].lock);
+                        funlockfile(f);
+
+                        fflush(f);
+                }
+                pthread_mutex_unlock(&accounts[i].lock);
         }
 
         return 0;
 }
 
-uint8_t
+static uint8_t
 handle_exit(void)
 {
         printf("Exiting. . .\n");
@@ -316,7 +323,7 @@ handle_exit(void)
 }
 
 /* For debugging */
-void
+static void
 print_queue(queue_t *q)
 {
         printf("printing queue\n");
@@ -332,17 +339,10 @@ print_queue(queue_t *q)
                 if (((request_t *) cur->datum)->cmd[1]) {
                     strcat(contents, ((request_t *) cur->datum)->cmd[1]);
                 }
-            cur = cur->next;
+                cur = cur->next;
         }
 
         printf("Contents: %s \n", contents);
         free(contents);
 }
 
-/*
-   int initialize_accounts_wrapper(int num_accounts)
-   {
-   for (i = 0; i < num_accounts) {
-   accounts[i].value = BANK_accounts[i];
-   }
-   } */

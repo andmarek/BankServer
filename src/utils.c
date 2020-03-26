@@ -8,7 +8,8 @@
 
 #define BUFSIZE 64
 
-char *read_line()
+char *
+read_line()
 {
     char *line;
     line = NULL;
@@ -19,26 +20,27 @@ char *read_line()
     return line;
 }
 
-char **split_line(char *line)
+char **
+split_line(char *line)
 {
-    char *sep = " \t\r\n\a";
-    char **tokens;
-    char *token;
+        char *sep = " \t\r\n\a";
+        char **tokens;
+        char *token;
 
-    int token_count = 0;
+        int token_count = 0;
 
-    tokens = malloc(sizeof (char*) * BUFSIZE);
-    token = strtok(line, sep);
+        tokens = malloc(sizeof (char*) * BUFSIZE);
+        token = strtok(line, sep);
 
-    while (token != NULL) {
-        tokens[token_count] = token;
-        token = strtok(NULL, sep);
-        token_count++;
-    }
+        while (token != NULL) {
+                tokens[token_count] = token;
+                token = strtok(NULL, sep);
+                token_count++;
+        }
 
-    /* Putting a null byte here so we can count the argv eventually */
-    tokens[token_count] = NULL;
+        /* Putting a null byte here so we can count the argv eventually */
+        tokens[token_count] = NULL;
 
-    return tokens;
+        return tokens;
 }
 
