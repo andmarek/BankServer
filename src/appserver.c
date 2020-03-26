@@ -13,10 +13,9 @@ void *event_loop();
 void *handle_request_thread(void *arg);
 uint8_t handle_balance_check(char **argv, queue_node_t *);
 uint8_t handle_trans(char **argv, queue_node_t *);
+int process_trans(request_t *, int);
 uint8_t handle_exit(void);
 void print_queue(queue_t *);
-int process_trans(request_t *, int);
-//int initialize_accounts_wrapper(int);
 
 FILE *f;
 struct timeval t;
@@ -32,6 +31,8 @@ int main(int argc, char **argv)
     int i;
     int num_threads, num_accounts;
     queue_t *q;
+
+    end = 0;
 
     num_threads = atoi(argv[1]);
     num_accounts = atoi(argv[2]);
@@ -74,7 +75,6 @@ int main(int argc, char **argv)
 
     write_account(2, 8);
     accounts[1].value = 5;
-
     /***/
 
     pthread_join(io, NULL);
@@ -85,60 +85,32 @@ int main(int argc, char **argv)
 
     printf("All threads complete\n");
 
+    /* this didn't work at all!!!!!
+    if (end) {
+        pthread_cancel(io);
+        for (int z = 0; i < num_threads; i++) {
+            pthread_cancel(workers[i]);
+        }
+//        pthread_cancel();
+
+    } */
+
     fclose(f);
 
     return 0;
 }
 
-void *handle_request_thread(void *arg)
-{
-    queue_t *q = (queue_t *) arg;
-
-    pthread_mutex_lock(&q_lock);
-
-    while (is_empty(q)) {
-        pthread_cond_wait(&io_cv, &q_lock);
-    }
-
-    printf("---Handling request---\n");
-
-    queue_node_t *n;
-    request_t *r;
-
-    n = dequeue(q);
-
-    r = n->datum;
-
-    char **args = r->cmd;
-
-    if (strncasecmp(args[0], "CHECK", 5 ) == 0) {
-        printf("---Handling balance check---\n");
-        handle_balance_check(args, n);
-    } else if (strncasecmp(args[0], "TRANS", 5 ) == 0) {
-        printf("Handling transaction\n");
-        handle_trans(args, n);
-    } else if (strncasecmp(args[0], "END", 3 ) == 0) {
-        printf("Handling exit\n");
-        end = handle_exit();
-    } else {
-        printf("Invalid input: %s\n", r->cmd[0]);
-    }
-
-    pthread_mutex_unlock(&q_lock);
-
-    return NULL;
-}
-
 void *event_loop(queue_t *q)
 {
-    pthread_mutex_lock(&q_lock);
 
     char *line;
     char **args;
     int id = 1;
 
-    do {
 
+    pthread_mutex_lock(&q_lock);
+
+    while (!end) {
         printf("> ");
 
         fflush(stdout);
@@ -160,13 +132,60 @@ void *event_loop(queue_t *q)
 
         pthread_cond_broadcast(&io_cv);
 
+        printf("end %d\n", end);
+
         pthread_mutex_unlock(&q_lock);
+    }
 
-
-    } while (!end);
+    printf("end %d\n", end);
 
     return NULL;
 }
+
+void *handle_request_thread(void *arg)
+{
+    queue_t *q = (queue_t *) arg;
+    queue_node_t *n;
+    request_t *r;
+
+    while (end)
+        pthread_cond_wait(&worker_cv, &q_lock);
+
+ /*   if (end) {
+        return NULL;
+    }*/
+
+    pthread_mutex_lock(&q_lock);
+
+    while (is_empty(q))
+        pthread_cond_wait(&worker_cv, &q_lock);
+
+    printf("---Handling request---\n");
+
+    n = dequeue(q);
+
+    r = n->datum;
+
+    char **args = r->cmd;
+
+    if (strncasecmp(args[0], "CHECK", 5 ) == 0) {
+        printf("---Handling balance check---\n");
+        handle_balance_check(args, n);
+    } else if (strncasecmp(args[0], "TRANS", 5 ) == 0) {
+        printf("Handling transaction\n");
+        handle_trans(args, n);
+    } else if (strncasecmp(args[0], "END", 3 ) == 0) {
+        printf("Handling exit\n");
+        end = handle_exit();
+    } else {
+        printf("Invalid input: %s\n", r->cmd[0]);
+    }
+    pthread_mutex_unlock(&q_lock);
+
+    return NULL;
+}
+
+
 
 uint8_t handle_balance_check(char **argv, queue_node_t *n)
 {
@@ -192,9 +211,13 @@ uint8_t handle_balance_check(char **argv, queue_node_t *n)
 
     r->endtime = t;
 
+    flockfile(f);
+
     fprintf(f, "%d BAL %d TIME %ld.%06.ld %ld.%06.ld \n", req_id, balance, (long) r->starttime.tv_sec,
             (long) r->starttime.tv_usec, (long) r->endtime.tv_sec, (long) r->endtime.tv_usec);
     printf("%s\n", message);
+
+    funlockfile(f);
 
     fflush(f);
 
@@ -272,8 +295,12 @@ int process_trans(request_t *r, int trans_size)
         if (trans_amount < 0 && (acc_balance + trans_amount < 0)) {
             printf("------Not enough funds in account %d-----\n", i);
 
+            flockfile(f);
+
             fprintf(f, "%d ISF TIME %ld.%06.ld %ld.%06.ld \n", r->request_id, (long) r->starttime.tv_sec,
                     (long) r->starttime.tv_usec, (long) r->endtime.tv_sec, (long) r->endtime.tv_usec);
+
+            funlockfile(f);
 
             fflush(f);
             return 1;
@@ -286,9 +313,12 @@ int process_trans(request_t *r, int trans_size)
 
             gettimeofday(&t, NULL);
 
+            flockfile(f);
+
             fprintf(f, "%d OK TIME %ld.%06.ld %ld.%06.ld \n", r->request_id, (long) r->starttime.tv_sec,
                    (long) r->starttime.tv_usec, (long) r->endtime.tv_sec, (long) r->endtime.tv_usec);
 
+            funlockfile(f);
 
             fflush(f);
         }
