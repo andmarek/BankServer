@@ -31,6 +31,7 @@ int main(int argc, char **argv)
     int i;
     int num_threads, num_accounts;
     queue_t *q;
+    pthread_t io;
 
     end = 0;
 
@@ -44,7 +45,6 @@ int main(int argc, char **argv)
     pthread_mutex_init(&q_lock, NULL); /* Initialize lock */
 
     /* Create the producer thread */
-    pthread_t io;
     pthread_create(&io, NULL, event_loop, q);
 
     pthread_cond_init(&worker_cv, NULL);
@@ -119,11 +119,11 @@ void *event_loop(queue_t *q)
 
         gettimeofday(&t, NULL);
 
-        pthread_mutex_lock(&q_lock);
         request_t *r = malloc(sizeof(request_t));
         r->cmd = args; r->request_id = id;
         r->starttime = t;
 
+        pthread_mutex_lock(&q_lock);
         /* I think we may need to wait here */
         enqueue(q, r);
 
@@ -141,6 +141,7 @@ void *event_loop(queue_t *q)
 
 void *handle_request_thread(void *arg)
 {
+    while (!end) {
     queue_t *q = (queue_t *) arg;
     queue_node_t *n;
     request_t *r;
@@ -174,6 +175,7 @@ void *handle_request_thread(void *arg)
     }
 
     pthread_mutex_unlock(&q_lock);
+    }
     return NULL;
 }
 
