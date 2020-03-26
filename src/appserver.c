@@ -102,13 +102,10 @@ int main(int argc, char **argv)
 
 void *event_loop(queue_t *q)
 {
-
     char *line;
     char **args;
     int id = 1;
-
-
-    pthread_mutex_lock(&q_lock);
+    queue_node_t *n;
 
     while (!end) {
         printf("> ");
@@ -118,7 +115,6 @@ void *event_loop(queue_t *q)
         line = read_line();
         args = split_line(line);
 
-        queue_node_t *n;
 
         gettimeofday(&t, NULL);
 
@@ -126,13 +122,13 @@ void *event_loop(queue_t *q)
         r->cmd = args; r->request_id = id;
         r->starttime = t;
 
+        pthread_mutex_lock(&q_lock);
+        /* I think we may need to wait here */
         enqueue(q, r);
 
         id++;
 
-        pthread_cond_broadcast(&io_cv);
-
-        printf("end %d\n", end);
+        pthread_cond_broadcast(&worker_cv);
 
         pthread_mutex_unlock(&q_lock);
     }
@@ -148,17 +144,11 @@ void *handle_request_thread(void *arg)
     queue_node_t *n;
     request_t *r;
 
-    while (end)
-        pthread_cond_wait(&worker_cv, &q_lock);
-
- /*   if (end) {
-        return NULL;
-    }*/
-
     pthread_mutex_lock(&q_lock);
 
     while (is_empty(q))
         pthread_cond_wait(&worker_cv, &q_lock);
+
 
     printf("---Handling request---\n");
 
@@ -167,6 +157,8 @@ void *handle_request_thread(void *arg)
     r = n->datum;
 
     char **args = r->cmd;
+
+    pthread_mutex_unlock(&q_lock);
 
     if (strncasecmp(args[0], "CHECK", 5 ) == 0) {
         printf("---Handling balance check---\n");
@@ -180,7 +172,7 @@ void *handle_request_thread(void *arg)
     } else {
         printf("Invalid input: %s\n", r->cmd[0]);
     }
-    pthread_mutex_unlock(&q_lock);
+
 
     return NULL;
 }
@@ -268,6 +260,8 @@ uint8_t handle_trans(char **argv, queue_node_t *n)
 
     printf("< ID %d\n", r->request_id);
 
+    free (r->transactions);
+
     return 0;
 }
 
@@ -354,6 +348,7 @@ void print_queue(queue_t *q)
     }
 
     printf("Contents: %s \n", contents);
+    free(contents);
 }
 
 /*
