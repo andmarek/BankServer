@@ -276,6 +276,10 @@ process_trans(request_t *r, int trans_size)
 
                         flockfile(f);
 
+                        gettimeof(&t, NULL);
+
+                        r->endtime = t;
+
                         fprintf(f, "%d ISF TIME %ld.%06.ld %ld.%06.ld \n", r->request_id, (long) r->starttime.tv_sec,
                                 (long) r->starttime.tv_usec, (long) r->endtime.tv_sec, (long) r->endtime.tv_usec);
 
