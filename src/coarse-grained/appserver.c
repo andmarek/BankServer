@@ -58,13 +58,13 @@ main(int argc, char **argv)
 
         accounts = malloc(num_accounts * sizeof(account_t));
 
-        if (!initialize_accounts(num_accounts)) { /* We might need to lock some shit here */
+        if (!initialize_accounts(num_accounts)) {
                 printf("Error: initialize accounts failed");
                 return 1;
         }
 
         for (i = 0; i < num_accounts; i++) {
-                pthread_mutex_init(&(accounts[i].lock), NULL); /* Each account has their own mutex! */
+                pthread_mutex_init(&(accounts[i].lock), NULL);
                 accounts[i].value = 0;
         }
 
@@ -133,24 +133,17 @@ handle_request_thread(void *arg)
                 while (is_empty(q))
                         pthread_cond_wait(&worker_cv, &q_lock);
 
-
-                printf("---Handling request---\n");
-
                 n = dequeue(q);
 
                 r = n->datum;
 
                 char **args = r->cmd;
 
-
                 if (strncasecmp(args[0], "CHECK", 5 ) == 0) {
-                        printf("---Handling balance check---\n");
                         handle_balance_check(args, n);
                 } else if (strncasecmp(args[0], "TRANS", 5 ) == 0) {
-                        printf("Handling transaction\n");
                         handle_trans(args, n);
                 } else if (strncasecmp(args[0], "END", 3 ) == 0) {
-                        printf("Handling exit\n");
                         end = handle_exit();
                 } else {
                         printf("Invalid input: %s\n", r->cmd[0]);
@@ -201,14 +194,12 @@ handle_balance_check(char **argv, queue_node_t *n)
 
         fflush(f);
 
-        printf("----------\n");
-
         return 0;
 }
 
 
 /* trash ass code */
-/* On success, return 1 */
+/* On success, return 0 */
 uint8_t
 handle_trans(char **argv, queue_node_t *n)
 {
@@ -225,16 +216,16 @@ handle_trans(char **argv, queue_node_t *n)
 
         /* We're just doing this to get the size for now */
         while (r->cmd[i] != NULL) {
-                size++; // could be the cause of some problems.
+                size++; /* could be the cause of some problems. */
                 i++; /* Iterator for our thing */
         }
 
         /* Size should be divisible by 2 with valid input */
         r->transactions = malloc(sizeof(transaction_t) * size/2);
 
-        k = 0; // iterating the transactions array in the request
-        j = 1; // iterating per account_id
-        i = 2; // iterating per amount
+        k = 0; /* iterating the transactions array in the request */
+        j = 1; /* iterating per account_id */
+        i = 2; /* iterating per trans amount */
         while (r->cmd[i] != NULL) {
                 r->transactions[k].acc_id = atoi(r->cmd[j]);
                 r->transactions[k].amount = atoi(r->cmd[i]);
@@ -259,27 +250,29 @@ handle_trans(char **argv, queue_node_t *n)
 int
 process_trans(request_t *r, int trans_size)
 {
-        int i; // iterator for transactions
-        int trans_amount; // amount we are sending or deducting
-        int id; // id of particular transaction
-        int acc_balance; // account balance of transacting acc
-        int write_val; // the amount we are writing to the account
-        transaction_t *tr = (r->transactions);
+        int i;
+        int trans_amount;
+        int id;
+        int acc_balance;
+        int write_val;
+        transaction_t *tr;
+
+        tr = (r->transactions);
 
         for (i = 0; i < trans_size; i++) {
                 pthread_mutex_lock(&accounts[i].lock);
 
-                acc_balance = accounts[tr[i].acc_id].value; // we assume acc list is origanized by id
+                acc_balance = accounts[tr[i].acc_id].value; /* We assume acc list is origanized by id */
 
-                trans_amount = tr[i].amount; // amount recorded from trans
+                trans_amount = tr[i].amount; /* amount recorded from trans */
 
-                id = tr[i].acc_id; // id recorded from trans
+                id = tr[i].acc_id; /* id recorded from trans */
 
                 /* Check if the account has enough funds to withdrawal */
 
-                // trans amount could be negative
+                /* Trans amount could be negative */
                 if (trans_amount < 0 && (acc_balance + trans_amount < 0)) {
-                        printf("------Not enough funds in account %d-----\n", i);
+                        printf("Not enough funds in account %d\n", i);
 
                         flockfile(f);
 
@@ -299,6 +292,8 @@ process_trans(request_t *r, int trans_size)
                         accounts[id].value = read_account(id);
 
                         gettimeofday(&t, NULL);
+
+                        r->endtime = t;
 
                         flockfile(f);
 
@@ -337,7 +332,7 @@ print_queue(queue_t *q)
         while (cur->next != NULL) {
                 strcat(contents, ((request_t *) cur->datum)->cmd[0]);
                 if (((request_t *) cur->datum)->cmd[1]) {
-                    strcat(contents, ((request_t *) cur->datum)->cmd[1]);
+                        strcat(contents, ((request_t *) cur->datum)->cmd[1]);
                 }
                 cur = cur->next;
         }
