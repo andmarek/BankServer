@@ -25,6 +25,8 @@ pthread_mutex_t q_lock;
 pthread_cond_t io_cv;
 pthread_cond_t worker_cv;
 
+pthread_mutex_t bank_lock; /* Coarse granularity lock mechanism */
+
 int
 main(int argc, char **argv)
 {
@@ -46,6 +48,8 @@ main(int argc, char **argv)
 
         pthread_mutex_init(&q_lock, NULL);
 
+        pthread_mutex_init(&bank_lock, NULL);
+
         pthread_create(&io, NULL, event_loop, q);
 
         pthread_cond_init(&worker_cv, NULL);
@@ -64,7 +68,7 @@ main(int argc, char **argv)
         }
 
         for (i = 0; i < num_accounts; i++) {
-                pthread_mutex_init(&(accounts[i].lock), NULL);
+                //pthread_mutex_init(&(accounts[i].lock), NULL);
                 accounts[i].value = 0;
         }
 
@@ -168,11 +172,11 @@ handle_balance_check(char **argv, queue_node_t *n)
 
         acc_id = atoi(argv[1]);
 
-        pthread_mutex_lock(&accounts[acc_id].lock);
+        pthread_mutex_lock(&bank_lock);
 
         balance = read_account(acc_id);
 
-        pthread_mutex_unlock(&accounts[acc_id].lock);
+        pthread_mutex_lock(&bank_lock);
 
         req_id = ((request_t *) n->datum)->request_id;
 
@@ -274,6 +278,10 @@ process_trans(request_t *r, int trans_size)
                 if (trans_amount < 0 && (acc_balance + trans_amount < 0)) {
                         printf("Not enough funds in account %d\n", i);
 
+                        gettimeofday(&t, NULL);
+
+                        r->endtime = t;
+
                         flockfile(f);
 
                         fprintf(f, "%d ISF TIME %ld.%06.ld %ld.%06.ld \n", r->request_id, (long) r->starttime.tv_sec,
@@ -287,9 +295,13 @@ process_trans(request_t *r, int trans_size)
                 } else {
                         write_val = trans_amount + acc_balance;
 
+                        pthread_mutex_lock(&bank_lock);
+
                         write_account(id, write_val);
 
                         accounts[id].value = read_account(id);
+
+                        pthread_mutex_unlock(&bank_lock);
 
                         gettimeofday(&t, NULL);
 
