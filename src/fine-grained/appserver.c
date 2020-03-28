@@ -92,8 +92,8 @@ event_loop(queue_t *q)
 
         while (!end) {
                 printf("> ");
-
                 fflush(stdout);
+
 
                 line = read_line();
                 args = split_line(line);
@@ -260,8 +260,8 @@ process_trans(request_t *r, int trans_size)
         tr = (r->transactions);
 
         for (i = 0; i < trans_size; i++) {
-                pthread_mutex_lock(&accounts[i].lock);
 
+        pthread_mutex_lock(&accounts[i].lock);
                 acc_balance = accounts[tr[i].acc_id].value; /* We assume acc list is origanized by id */
 
                 trans_amount = tr[i].amount; /* amount recorded from trans */
@@ -276,7 +276,7 @@ process_trans(request_t *r, int trans_size)
 
                         flockfile(f);
 
-                        gettimeof(&t, NULL);
+                        gettimeofday(&t, NULL);
 
                         r->endtime = t;
 
@@ -295,21 +295,29 @@ process_trans(request_t *r, int trans_size)
 
                         accounts[id].value = read_account(id);
 
-                        gettimeofday(&t, NULL);
 
-                        r->endtime = t;
 
-                        flockfile(f);
 
-                        fprintf(f, "%d OK TIME %ld.%06.ld %ld.%06.ld \n", r->request_id, (long) r->starttime.tv_sec,
-                               (long) r->starttime.tv_usec, (long) r->endtime.tv_sec, (long) r->endtime.tv_usec);
 
-                        funlockfile(f);
 
-                        fflush(f);
                 }
+
+
                 pthread_mutex_unlock(&accounts[i].lock);
         }
+
+                gettimeofday(&t, NULL);
+
+                r->endtime = t;
+
+                flockfile(f);
+
+                fprintf(f, "%d OK TIME %ld.%06.ld %ld.%06.ld \n", r->request_id, (long) r->starttime.tv_sec,
+                        (long) r->starttime.tv_usec, (long) r->endtime.tv_sec, (long) r->endtime.tv_usec);
+
+                funlockfile(f);
+
+                fflush(f);
 
         return 0;
 }
