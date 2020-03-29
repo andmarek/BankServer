@@ -33,26 +33,38 @@ main(int argc, char **argv)
         int num_threads, num_accounts;
         queue_t *q;
         pthread_t io;
-        pthread_t workers[num_threads];
+        pthread_t *workers;
+
+//        setbuf(stdout, NULL); need ?
 
         end = 0;
 
         num_threads = atoi(argv[1]);
+        workers = malloc(sizeof(pthread_t) * num_threads);
+
         num_accounts = atoi(argv[2]);
+
         responses = argv[3];
+        printf("Writing to file: %s\n", responses);
 
         q = malloc(sizeof(queue_t));
         queue_init(q);
 
         pthread_mutex_init(&q_lock, NULL);
 
+        pthread_cond_init(&worker_cv, NULL);
+
         pthread_create(&io, NULL, event_loop, q);
 
-        pthread_cond_init(&worker_cv, NULL);
+
+        printf("%d worker threads initialized\n", num_threads);
+        printf("%d accounts initialized\n", num_accounts);
+        fflush(stdout);
 
         for (i = 0; i < num_threads; i++) {
                 pthread_create(&workers[i], NULL, handle_request_thread, q);
         }
+
 
         f = fopen(responses, "a");
 
@@ -61,12 +73,16 @@ main(int argc, char **argv)
         if (!initialize_accounts(num_accounts)) {
                 printf("Error: initialize accounts failed");
                 return 1;
-        }
+        } 
+
+        
+        fflush(stdout);
 
         for (i = 0; i < num_accounts; i++) {
                 pthread_mutex_init(&(accounts[i].lock), NULL);
                 accounts[i].value = 0;
         }
+
 
         pthread_join(io, NULL);
 
@@ -91,7 +107,7 @@ event_loop(queue_t *q)
         id = 1;
 
         while (!end) {
-                printf("> ");
+                //printf("> ");
                 fflush(stdout);
 
 
@@ -145,9 +161,13 @@ handle_request_thread(void *arg)
                         handle_trans(args, n);
                 } else if (strncasecmp(args[0], "END", 3 ) == 0) {
                         end = handle_exit();
+                        return NULL;
                 } else {
                         printf("Invalid input: %s\n", r->cmd[0]);
+                        continue;
                 }
+
+                printf("< ID %d\n", r->request_id);
 
                 pthread_mutex_unlock(&q_lock);
         }
@@ -176,8 +196,6 @@ handle_balance_check(char **argv, queue_node_t *n)
 
         req_id = ((request_t *) n->datum)->request_id;
 
-        printf("< ID %d\n", req_id);
-
         message = malloc(sizeof(char) * 50);
 
         gettimeofday(&t, NULL);
@@ -186,9 +204,13 @@ handle_balance_check(char **argv, queue_node_t *n)
 
         flockfile(f);
 
-        fprintf(f, "%d BAL %d TIME %ld.%06.ld %ld.%06.ld \n", req_id, balance, (long) r->starttime.tv_sec,
-                (long) r->starttime.tv_usec, (long) r->endtime.tv_sec, (long) r->endtime.tv_usec);
-        printf("%s\n", message);
+        fprintf(f, "%d BAL %d TIME %ld.%06.ld %ld.%06.ld\n", 
+                req_id, 
+                balance, 
+                (long) r->starttime.tv_sec,
+                (long) r->starttime.tv_usec, 
+                (long) r->endtime.tv_sec,
+                (long) r->endtime.tv_usec);
 
         funlockfile(f);
 
@@ -240,7 +262,7 @@ handle_trans(char **argv, queue_node_t *n)
                 return 1;
         }
 
-        printf("< ID %d\n", r->request_id);
+        fflush(stdout);
 
         free (r->transactions);
 
@@ -280,8 +302,12 @@ process_trans(request_t *r, int trans_size)
 
                         r->endtime = t;
 
-                        fprintf(f, "%d ISF TIME %ld.%06.ld %ld.%06.ld \n", r->request_id, (long) r->starttime.tv_sec,
-                                (long) r->starttime.tv_usec, (long) r->endtime.tv_sec, (long) r->endtime.tv_usec);
+                        fprintf(f, "%d ISF TIME %ld.%06.ld %ld.%06.ld\n",
+                                r->request_id, 
+                                (long) r->starttime.tv_sec,
+                                (long) r->starttime.tv_usec,
+                                (long) r->endtime.tv_sec, 
+                                (long) r->endtime.tv_usec);
 
                         funlockfile(f);
 
@@ -295,9 +321,9 @@ process_trans(request_t *r, int trans_size)
 
                         accounts[id].value = read_account(id);
 
+                        gettimeofday(&t, NULL);
 
-
-
+                        r->endtime = t;
 
 
                 }
@@ -306,18 +332,19 @@ process_trans(request_t *r, int trans_size)
                 pthread_mutex_unlock(&accounts[i].lock);
         }
 
-                gettimeofday(&t, NULL);
+        flockfile(f);
 
-                r->endtime = t;
+        fprintf(f, "%d OK TIME %ld.%06.ld %ld.%06.ld \n",
+                r->request_id, 
+                (long) r->starttime.tv_sec,
+                (long) r->starttime.tv_usec, 
+                (long) r->endtime.tv_sec,
+                (long) r->endtime.tv_usec);
 
-                flockfile(f);
+        funlockfile(f);
+                
 
-                fprintf(f, "%d OK TIME %ld.%06.ld %ld.%06.ld \n", r->request_id, (long) r->starttime.tv_sec,
-                        (long) r->starttime.tv_usec, (long) r->endtime.tv_sec, (long) r->endtime.tv_usec);
-
-                funlockfile(f);
-
-                fflush(f);
+        fflush(f);
 
         return 0;
 }
