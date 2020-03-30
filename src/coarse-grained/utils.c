@@ -23,13 +23,17 @@ read_line()
 char **
 split_line(char *line)
 {
-        char *sep = " \t\r\n\a";
+        char *sep;
         char **tokens;
         char *token;
+        int token_count;
 
-        int token_count = 0;
+        sep = " \t\r\n\a";
+
+        token_count = 0;
 
         tokens = malloc(sizeof (char*) * BUFSIZE);
+
         token = strtok(line, sep);
 
         while (token != NULL) {

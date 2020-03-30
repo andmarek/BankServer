@@ -25,8 +25,6 @@ pthread_mutex_t q_lock;
 pthread_cond_t io_cv;
 pthread_cond_t worker_cv;
 
-pthread_mutex_t bank_lock; /* Coarse granularity lock mechanism */
-
 int
 main(int argc, char **argv)
 {
@@ -35,28 +33,38 @@ main(int argc, char **argv)
         int num_threads, num_accounts;
         queue_t *q;
         pthread_t io;
-        pthread_t workers[num_threads];
+        pthread_t *workers;
+
+//        setbuf(stdout, NULL); need ?
 
         end = 0;
 
         num_threads = atoi(argv[1]);
+        workers = malloc(sizeof(pthread_t) * num_threads);
+
         num_accounts = atoi(argv[2]);
+
         responses = argv[3];
+        printf("Writing to file: %s\n", responses);
 
         q = malloc(sizeof(queue_t));
         queue_init(q);
 
         pthread_mutex_init(&q_lock, NULL);
 
-        pthread_mutex_init(&bank_lock, NULL);
+        pthread_cond_init(&worker_cv, NULL);
 
         pthread_create(&io, NULL, event_loop, q);
 
-        pthread_cond_init(&worker_cv, NULL);
+
+        printf("%d worker threads initialized\n", num_threads);
+        printf("%d accounts initialized\n", num_accounts);
+        fflush(stdout);
 
         for (i = 0; i < num_threads; i++) {
                 pthread_create(&workers[i], NULL, handle_request_thread, q);
         }
+
 
         f = fopen(responses, "a");
 
@@ -67,10 +75,14 @@ main(int argc, char **argv)
                 return 1;
         }
 
+
+        fflush(stdout);
+
         for (i = 0; i < num_accounts; i++) {
-                //pthread_mutex_init(&(accounts[i].lock), NULL);
+                pthread_mutex_init(&(accounts[i].lock), NULL);
                 accounts[i].value = 0;
         }
+
 
         pthread_join(io, NULL);
 
@@ -95,9 +107,9 @@ event_loop(queue_t *q)
         id = 1;
 
         while (!end) {
-                printf("> ");
-
+//                printf("> "); I would love if this worked
                 fflush(stdout);
+
 
                 line = read_line();
                 args = split_line(line);
@@ -149,9 +161,13 @@ handle_request_thread(void *arg)
                         handle_trans(args, n);
                 } else if (strncasecmp(args[0], "END", 3 ) == 0) {
                         end = handle_exit();
+                        return NULL;
                 } else {
                         printf("Invalid input: %s\n", r->cmd[0]);
+                        continue;
                 }
+
+                printf("< ID %d\n", r->request_id);
 
                 pthread_mutex_unlock(&q_lock);
         }
@@ -172,15 +188,13 @@ handle_balance_check(char **argv, queue_node_t *n)
 
         acc_id = atoi(argv[1]);
 
-        pthread_mutex_lock(&bank_lock);
+        pthread_mutex_lock(&accounts[acc_id].lock);
 
         balance = read_account(acc_id);
 
-        pthread_mutex_lock(&bank_lock);
+        pthread_mutex_unlock(&accounts[acc_id].lock);
 
         req_id = ((request_t *) n->datum)->request_id;
-
-        printf("< ID %d\n", req_id);
 
         message = malloc(sizeof(char) * 50);
 
@@ -190,9 +204,13 @@ handle_balance_check(char **argv, queue_node_t *n)
 
         flockfile(f);
 
-        fprintf(f, "%d BAL %d TIME %ld.%06.ld %ld.%06.ld \n", req_id, balance, (long) r->starttime.tv_sec,
-                (long) r->starttime.tv_usec, (long) r->endtime.tv_sec, (long) r->endtime.tv_usec);
-        printf("%s\n", message);
+        fprintf(f, "%d BAL %d TIME %ld.%06ld %ld.%06ld\n",
+                req_id,
+                balance,
+                (long) r->starttime.tv_sec,
+                (long) r->starttime.tv_usec,
+                (long) r->endtime.tv_sec,
+                (long) r->endtime.tv_usec);
 
         funlockfile(f);
 
@@ -244,7 +262,7 @@ handle_trans(char **argv, queue_node_t *n)
                 return 1;
         }
 
-        printf("< ID %d\n", r->request_id);
+        fflush(stdout);
 
         free (r->transactions);
 
@@ -264,8 +282,8 @@ process_trans(request_t *r, int trans_size)
         tr = (r->transactions);
 
         for (i = 0; i < trans_size; i++) {
-                pthread_mutex_lock(&accounts[i].lock);
 
+        pthread_mutex_lock(&accounts[i].lock);
                 acc_balance = accounts[tr[i].acc_id].value; /* We assume acc list is origanized by id */
 
                 trans_amount = tr[i].amount; /* amount recorded from trans */
@@ -278,14 +296,18 @@ process_trans(request_t *r, int trans_size)
                 if (trans_amount < 0 && (acc_balance + trans_amount < 0)) {
                         printf("Not enough funds in account %d\n", i);
 
+                        flockfile(f);
+
                         gettimeofday(&t, NULL);
 
                         r->endtime = t;
 
-                        flockfile(f);
-
-                        fprintf(f, "%d ISF TIME %ld.%06.ld %ld.%06.ld \n", r->request_id, (long) r->starttime.tv_sec,
-                                (long) r->starttime.tv_usec, (long) r->endtime.tv_sec, (long) r->endtime.tv_usec);
+                        fprintf(f, "%d ISF TIME %ld.%06ld %ld.%06ld\n",
+                                r->request_id,
+                                (long) r->starttime.tv_sec,
+                                (long) r->starttime.tv_usec,
+                                (long) r->endtime.tv_sec,
+                                (long) r->endtime.tv_usec);
 
                         funlockfile(f);
 
@@ -295,29 +317,34 @@ process_trans(request_t *r, int trans_size)
                 } else {
                         write_val = trans_amount + acc_balance;
 
-                        pthread_mutex_lock(&bank_lock);
-
                         write_account(id, write_val);
 
                         accounts[id].value = read_account(id);
-
-                        pthread_mutex_unlock(&bank_lock);
 
                         gettimeofday(&t, NULL);
 
                         r->endtime = t;
 
-                        flockfile(f);
 
-                        fprintf(f, "%d OK TIME %ld.%06.ld %ld.%06.ld \n", r->request_id, (long) r->starttime.tv_sec,
-                               (long) r->starttime.tv_usec, (long) r->endtime.tv_sec, (long) r->endtime.tv_usec);
-
-                        funlockfile(f);
-
-                        fflush(f);
                 }
+
+
                 pthread_mutex_unlock(&accounts[i].lock);
         }
+
+        flockfile(f);
+
+        fprintf(f, "%d OK TIME %ld.%06ld %ld.%06ld\n",
+                r->request_id,
+                (long) r->starttime.tv_sec,
+                (long) r->starttime.tv_usec,
+                (long) r->endtime.tv_sec,
+                (long) r->endtime.tv_usec);
+
+        funlockfile(f);
+
+
+        fflush(f);
 
         return 0;
 }
