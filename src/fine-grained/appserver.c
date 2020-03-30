@@ -107,7 +107,7 @@ event_loop(queue_t *q)
         id = 1;
 
         while (!end) {
-                //printf("> ");
+//                printf("> "); I would love if this worked
                 fflush(stdout);
 
 
