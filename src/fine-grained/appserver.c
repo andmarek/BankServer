@@ -73,9 +73,9 @@ main(int argc, char **argv)
         if (!initialize_accounts(num_accounts)) {
                 printf("Error: initialize accounts failed");
                 return 1;
-        } 
+        }
 
-        
+
         fflush(stdout);
 
         for (i = 0; i < num_accounts; i++) {
@@ -204,11 +204,11 @@ handle_balance_check(char **argv, queue_node_t *n)
 
         flockfile(f);
 
-        fprintf(f, "%d BAL %d TIME %ld.%06.ld %ld.%06.ld\n", 
-                req_id, 
-                balance, 
+        fprintf(f, "%d BAL %d TIME %ld.%06ld %ld.%06ld\n",
+                req_id,
+                balance,
                 (long) r->starttime.tv_sec,
-                (long) r->starttime.tv_usec, 
+                (long) r->starttime.tv_usec,
                 (long) r->endtime.tv_sec,
                 (long) r->endtime.tv_usec);
 
@@ -302,11 +302,11 @@ process_trans(request_t *r, int trans_size)
 
                         r->endtime = t;
 
-                        fprintf(f, "%d ISF TIME %ld.%06.ld %ld.%06.ld\n",
-                                r->request_id, 
+                        fprintf(f, "%d ISF TIME %ld.%06ld %ld.%06ld\n",
+                                r->request_id,
                                 (long) r->starttime.tv_sec,
                                 (long) r->starttime.tv_usec,
-                                (long) r->endtime.tv_sec, 
+                                (long) r->endtime.tv_sec,
                                 (long) r->endtime.tv_usec);
 
                         funlockfile(f);
@@ -334,15 +334,15 @@ process_trans(request_t *r, int trans_size)
 
         flockfile(f);
 
-        fprintf(f, "%d OK TIME %ld.%06.ld %ld.%06.ld \n",
-                r->request_id, 
+        fprintf(f, "%d OK TIME %ld.%06ld %ld.%06ld\n",
+                r->request_id,
                 (long) r->starttime.tv_sec,
-                (long) r->starttime.tv_usec, 
+                (long) r->starttime.tv_usec,
                 (long) r->endtime.tv_sec,
                 (long) r->endtime.tv_usec);
 
         funlockfile(f);
-                
+
 
         fflush(f);
 
