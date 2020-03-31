@@ -89,6 +89,14 @@ main(int argc, char **argv)
         for (i = 0; i < num_threads; i++) {
                 pthread_join(workers[i], NULL);
         }
+        for (i = 0; i < num_threads; i++) {
+            pthread_cancel(workers[i]);
+        }
+        /* test to see if it ends */
+        if (end == 1) {
+            printf("Okay have we reached this yet?");
+            return 0;
+        }
 
         fclose(f);
 
@@ -106,10 +114,9 @@ event_loop(queue_t *q)
 
         id = 1;
 
-        while (!end) {
+        while (end == 0) {
 //                printf("> "); I would love if this worked
                 fflush(stdout);
-
 
                 line = read_line();
                 args = split_line(line);
@@ -122,6 +129,10 @@ event_loop(queue_t *q)
 
                 pthread_mutex_lock(&q_lock);
 
+                if (end == 1) {
+                    return 0;
+                }
+
                 enqueue(q, r);
 
                 id++;
@@ -130,24 +141,37 @@ event_loop(queue_t *q)
 
                 pthread_mutex_unlock(&q_lock);
         }
+            if (end == 1) {
+                printf("end is 0 in event loop\n");
+                    return 0;
+                }
+        printf("end is here %d:\n", end);
 
-        printf("end %d\n", end);
-
-        return NULL;
+        pthread_exit(0);
 }
 
 static void *
 handle_request_thread(void *arg)
 {
-        while (!end) {
-                queue_t *q = (queue_t *) arg;
+        queue_t *q = (queue_t *) arg;
+        while (end == 0) {
                 queue_node_t *n;
                 request_t *r;
 
                 pthread_mutex_lock(&q_lock);
-
-                while (is_empty(q))
+                if (end == 1) {
+                    return 0;
+                }
+                while (is_empty(q)) {
+                        if (end == 1) {
+                            printf("end when empty\n");
+                            return 0;
+                        }
                         pthread_cond_wait(&worker_cv, &q_lock);
+                }
+                if (end) {
+                    printf("end detected \n");
+                }
 
                 n = dequeue(q);
 
@@ -160,18 +184,23 @@ handle_request_thread(void *arg)
                 } else if (strncasecmp(args[0], "TRANS", 5 ) == 0) {
                         handle_trans(args, n);
                 } else if (strncasecmp(args[0], "END", 3 ) == 0) {
-                        end = handle_exit();
-                        return NULL;
+                        end = 1;
+                        //return 0;
+                        break;
+                        printf("exit bro \n");
                 } else {
                         printf("Invalid input: %s\n", r->cmd[0]);
                         continue;
                 }
-
                 printf("< ID %d\n", r->request_id);
 
                 pthread_mutex_unlock(&q_lock);
         }
-        return NULL;
+        if (end == 1) {
+            printf("heyo\n");
+            return 0;
+        }
+        return 0;
 }
 
 
@@ -282,8 +311,8 @@ process_trans(request_t *r, int trans_size)
         tr = (r->transactions);
 
         for (i = 0; i < trans_size; i++) {
+                pthread_mutex_lock(&accounts[i].lock);
 
-        pthread_mutex_lock(&accounts[i].lock);
                 acc_balance = accounts[tr[i].acc_id].value; /* We assume acc list is origanized by id */
 
                 trans_amount = tr[i].amount; /* amount recorded from trans */
@@ -325,9 +354,7 @@ process_trans(request_t *r, int trans_size)
 
                         r->endtime = t;
 
-
                 }
-
 
                 pthread_mutex_unlock(&accounts[i].lock);
         }
@@ -342,7 +369,6 @@ process_trans(request_t *r, int trans_size)
                 (long) r->endtime.tv_usec);
 
         funlockfile(f);
-
 
         fflush(f);
 
