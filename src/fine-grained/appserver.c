@@ -110,9 +110,13 @@ event_loop(queue_t *q)
 //                printf("> "); I would love if this worked
                 fflush(stdout);
 
-
                 line = read_line();
                 args = split_line(line);
+
+                if (strncasecmp(args[0], "END", 3) == 0) {
+                        end = 1;    
+                        pthread_cond_wait(&worker_cv, &q_lock);
+                }
 
                 gettimeofday(&t, NULL);
 
@@ -139,14 +143,14 @@ event_loop(queue_t *q)
 static void *
 handle_request_thread(void *arg)
 {
-        while (!end) {
+        while (1) {
                 queue_t *q = (queue_t *) arg;
                 queue_node_t *n;
                 request_t *r;
 
                 pthread_mutex_lock(&q_lock);
 
-                while (is_empty(q))
+                while (is_empty(q) && !end)
                         pthread_cond_wait(&worker_cv, &q_lock);
 
                 n = dequeue(q);
@@ -171,7 +175,8 @@ handle_request_thread(void *arg)
 
                 pthread_mutex_unlock(&q_lock);
         }
-        return NULL;
+
+        return 0;
 }
 
 
