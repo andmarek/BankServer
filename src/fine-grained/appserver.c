@@ -115,11 +115,21 @@ event_loop(queue_t *q)
         id = 1;
 
         while (end == 0) {
-//                printf("> "); I would love if this worked
                 fflush(stdout);
+                pthread_mutex_lock(&q_lock);
 
                 line = read_line();
                 args = split_line(line);
+
+
+                if (strncasecmp(args[0], "END", 3) == 0) {
+                    end = 1;
+                    printf("we should be ending\n");
+                    break;
+                    pthread_cond_broadcast(&worker_cv);
+                    pthread_mutex_unlock(&q_lock);
+                    return 0;
+                } 
 
                 gettimeofday(&t, NULL);
 
@@ -127,7 +137,6 @@ event_loop(queue_t *q)
                 r->cmd = args; r->request_id = id;
                 r->starttime = t;
 
-                pthread_mutex_lock(&q_lock);
 
                 if (end == 1) {
                     return 0;
@@ -142,9 +151,9 @@ event_loop(queue_t *q)
                 pthread_mutex_unlock(&q_lock);
         }
             if (end == 1) {
-                printf("end is 0 in event loop\n");
+                printf("end is 1 in event loop\n");
                     return 0;
-                }
+            }
         printf("end is here %d:\n", end);
 
         pthread_exit(0);
@@ -162,13 +171,9 @@ handle_request_thread(void *arg)
                 if (end == 1) {
                     return 0;
                 }
-                while (is_empty(q)) {
-                        if (end == 1) {
-                            printf("end when empty\n");
-                            return 0;
-                        }
+                while (is_empty(q)) 
                         pthread_cond_wait(&worker_cv, &q_lock);
-                }
+                
                 if (end) {
                     printf("end detected \n");
                 }
@@ -196,6 +201,7 @@ handle_request_thread(void *arg)
 
                 pthread_mutex_unlock(&q_lock);
         }
+
         if (end == 1) {
             printf("heyo\n");
             return 0;
