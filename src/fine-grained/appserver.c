@@ -114,8 +114,10 @@ event_loop(queue_t *q)
                 args = split_line(line);
 
                 if (strncasecmp(args[0], "END", 3) == 0) {
-                        end = 1;    
-                        pthread_cond_wait(&worker_cv, &q_lock);
+                        // broadcast
+                        end = 1;
+                        pthread_cond_broadcast(&worker_cv);
+                        break;
                 }
 
                 gettimeofday(&t, NULL);
@@ -143,15 +145,22 @@ event_loop(queue_t *q)
 static void *
 handle_request_thread(void *arg)
 {
-        while (1) {
+        while (!end) {
                 queue_t *q = (queue_t *) arg;
                 queue_node_t *n;
                 request_t *r;
 
                 pthread_mutex_lock(&q_lock);
 
-                while (is_empty(q) && !end)
+                while (is_empty(q) || end) { // how are we breaking out of this?
+                    if (end) {
+                        printf("brutha\n");
+                        break;
+                    }
                         pthread_cond_wait(&worker_cv, &q_lock);
+                }
+
+                // check if queue is empty or not end after broadcast potentially
 
                 n = dequeue(q);
 
@@ -175,8 +184,9 @@ handle_request_thread(void *arg)
 
                 pthread_mutex_unlock(&q_lock);
         }
+        printf("lol really");
 
-        return 0;
+        return NULL;
 }
 
 
@@ -249,6 +259,7 @@ handle_trans(char **argv, queue_node_t *n)
 
         /* Size should be divisible by 2 with valid input */
         r->transactions = malloc(sizeof(transaction_t) * size/2);
+        printf("transaction array size %d\n", size/2);
 
         k = 0; /* iterating the transactions array in the request */
         j = 1; /* iterating per account_id */
@@ -257,43 +268,48 @@ handle_trans(char **argv, queue_node_t *n)
                 r->transactions[k].acc_id = atoi(r->cmd[j]);
                 r->transactions[k].amount = atoi(r->cmd[i]);
 
+                printf("TRANS %d ACC_ID: %d\n", k, r->transactions[k].acc_id);
+                printf("TRANS %d ACC_ID: %d\n", k, r->transactions[k].amount);
+
                 k++;
                 j+=2;
                 i+=2;
         }
 
         if (process_trans(r, k)) {
-                printf("Error processing transactions");
-                return 1;
+                printf("Error processing transaction\n");
         }
 
         fflush(stdout);
 
-        free (r->transactions);
+        free(r->transactions);
 
         return 0;
 }
 
 int
-process_trans(request_t *r, int trans_size)
+process_trans(request_t *r, int trans_list_len)
 {
         int i;
         int trans_amount;
         int id;
         int acc_balance;
         int write_val;
+        int acc_id;
         transaction_t *tr;
 
         tr = (r->transactions);
 
-        for (i = 0; i < trans_size; i++) {
+        for (i = 0; i < trans_list_len; i++) {
+                pthread_mutex_lock(&accounts[acc_id].lock);
 
-        pthread_mutex_lock(&accounts[i].lock);
-                acc_balance = accounts[tr[i].acc_id].value; /* We assume acc list is origanized by id */
+                acc_id = tr[i].acc_id;
+                printf("acc_id: %d\n", acc_id);
+
+                acc_balance = accounts[acc_id].value; /* We assume acc list is origanized by id */
 
                 trans_amount = tr[i].amount; /* amount recorded from trans */
 
-                id = tr[i].acc_id; /* id recorded from trans */
 
                 /* Check if the account has enough funds to withdrawal */
 
@@ -322,9 +338,9 @@ process_trans(request_t *r, int trans_size)
                 } else {
                         write_val = trans_amount + acc_balance;
 
-                        write_account(id, write_val);
+                        write_account(acc_id, write_val);
 
-                        accounts[id].value = read_account(id);
+                        accounts[acc_id].value = read_account(id);
 
                         gettimeofday(&t, NULL);
 
@@ -334,7 +350,7 @@ process_trans(request_t *r, int trans_size)
                 }
 
 
-                pthread_mutex_unlock(&accounts[i].lock);
+                pthread_mutex_unlock(&accounts[acc_id].lock);
         }
 
         flockfile(f);
