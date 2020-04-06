@@ -137,7 +137,7 @@ event_loop(queue_t *q)
                 pthread_mutex_unlock(&q_lock);
         }
 
-        printf("end %d\n", end);
+        printf("End of IO thread %d\n", end);
 
         return NULL;
 }
@@ -172,9 +172,6 @@ handle_request_thread(void *arg)
                         handle_balance_check(args, n);
                 } else if (strncasecmp(args[0], "TRANS", 5 ) == 0) {
                         handle_trans(args, n);
-                } else if (strncasecmp(args[0], "END", 3 ) == 0) {
-                        end = handle_exit();
-                        return NULL;
                 } else {
                         printf("Invalid input: %s\n", r->cmd[0]);
                         continue;
