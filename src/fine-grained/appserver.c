@@ -62,7 +62,6 @@ main(int argc, char **argv)
 
         pthread_create(&io, NULL, event_loop, q);
 
-
         printf("%d worker threads initialized\n", num_threads);
         printf("%d accounts initialized\n", num_accounts);
         fflush(stdout);
@@ -81,9 +80,6 @@ main(int argc, char **argv)
                 return 1;
         }
 
-
-        fflush(stdout);
-
         for (i = 0; i < num_accounts; i++) {
                 pthread_mutex_init(&(accounts[i].lock), NULL);
                 accounts[i].value = 0;
@@ -96,6 +92,18 @@ main(int argc, char **argv)
                 pthread_join(workers[i], NULL);
         }
 
+        while (!end) {
+                line = read_line();
+                args = split_line(line);
+
+                if (strncasecmp(args[0], "END", 3) == 0) {
+                        end = 1;
+                        pthread_mutex_unlock(&q_lock);
+                        break;
+                }
+        }
+
+        printf("Help me\n");
         fclose(f);
 
         return 0;
@@ -112,13 +120,12 @@ event_loop(queue_t *q)
 
         id = 1;
 
-        while (!end) {
-//                printf("> "); I would love if this worked
+        while (end == 0) {
+                //printf("> "); //I would love if this worked
                 fflush(stdout);
 
-                line = read_line();
-                args = split_line(line);
 
+<<<<<<< HEAD
                 if (strncasecmp(args[0], "END", 3) == 0) {
                         end = 1;    
                         int count = 0;
@@ -130,6 +137,8 @@ event_loop(queue_t *q)
                         }
                         break;
                 }
+=======
+>>>>>>> 5a66f4c755b25c064b7c9c4a9fd02061b242db1e
 
                 gettimeofday(&t, NULL);
 
@@ -150,18 +159,20 @@ event_loop(queue_t *q)
 
         printf("end %d\n", end);
 
-        return NULL;
+        return 0;
 }
-
 static void *
 handle_request_thread(void *arg)
 {
-        while (1) {
-                queue_t *q = (queue_t *) arg;
+        queue_t *q = (queue_t *) arg;
+        //pthread_mutex_lock(&q_lock);
+        while (end == 0) {
+                char **args;
                 queue_node_t *n;
                 request_t *r;
 
                 pthread_mutex_lock(&q_lock);
+<<<<<<< HEAD
  
                 while (is_empty(q) && !end) {
                         if (end) {
@@ -175,12 +186,18 @@ handle_request_thread(void *arg)
                     break;
                 }
                 printf("before dequeue");
+=======
+                while (is_empty(q)) {
+                        //pthread_mutex_unlock(&q_lock); // what
+                        pthread_cond_wait(&worker_cv, &q_lock);
+                }
+>>>>>>> 5a66f4c755b25c064b7c9c4a9fd02061b242db1e
 
                 n = dequeue(q);
 
                 r = n->datum;
 
-                char **args = r->cmd;
+                args = r->cmd;
 
                 if (strncasecmp(args[0], "CHECK", 5 ) == 0) {
                         handle_balance_check(args, n);
@@ -198,7 +215,13 @@ handle_request_thread(void *arg)
 
                 pthread_mutex_unlock(&q_lock);
         }
+<<<<<<< HEAD
         pthread_mutex_unlock(&q_lock);
+=======
+
+        //pthread_mutex_unlock(&q_lock);
+
+>>>>>>> 5a66f4c755b25c064b7c9c4a9fd02061b242db1e
         return 0;
 }
 
@@ -286,7 +309,7 @@ handle_trans(char **argv, queue_node_t *n)
         }
 
         if (process_trans(r, k)) {
-                printf("Error processing transactions");
+                printf("Error processing transactions\n");
                 return 1;
         }
 
