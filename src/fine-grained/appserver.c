@@ -25,20 +25,26 @@ pthread_mutex_t q_lock;
 pthread_cond_t io_cv;
 pthread_cond_t worker_cv;
 
+int num_threads, num_accounts;
+
 int
 main(int argc, char **argv)
 {
         const char *responses;
         int i;
-        int num_threads, num_accounts;
         queue_t *q;
         pthread_t io;
         pthread_t *workers;
 
 //        setbuf(stdout, NULL); need ?
 
-        end = 0;
+        if (argc < 3) {
+            printf("too few arguments.");
+            return 0;
+        }
 
+        end = 0;
+        printf("fuck me\n");
         num_threads = atoi(argv[1]);
         workers = malloc(sizeof(pthread_t) * num_threads);
 
@@ -115,7 +121,14 @@ event_loop(queue_t *q)
 
                 if (strncasecmp(args[0], "END", 3) == 0) {
                         end = 1;    
-                        pthread_cond_wait(&worker_cv, &q_lock);
+                        int count = 0;
+                        while (end) {
+                          count++;
+                          pthread_cond_broadcast(&worker_cv);
+                          pthread_mutex_unlock(&q_lock);
+                          break;
+                        }
+                        break;
                 }
 
                 gettimeofday(&t, NULL);
@@ -149,9 +162,19 @@ handle_request_thread(void *arg)
                 request_t *r;
 
                 pthread_mutex_lock(&q_lock);
-
-                while (is_empty(q) && !end)
+ 
+                while (is_empty(q) && !end) {
+                        if (end) {
+                            printf("bro\n");
+                            break;
+                        }
                         pthread_cond_wait(&worker_cv, &q_lock);
+                }
+
+                if (end) {
+                    break;
+                }
+                printf("before dequeue");
 
                 n = dequeue(q);
 
@@ -175,7 +198,7 @@ handle_request_thread(void *arg)
 
                 pthread_mutex_unlock(&q_lock);
         }
-
+        pthread_mutex_unlock(&q_lock);
         return 0;
 }
 
