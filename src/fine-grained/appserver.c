@@ -36,15 +36,12 @@ main(int argc, char **argv)
         pthread_t io;
         pthread_t *workers;
 
-//        setbuf(stdout, NULL); need ?
-
         if (argc < 3) {
             printf("too few arguments.");
             return 0;
         }
 
         end = 0;
-        printf("fuck me\n");
         num_threads = atoi(argv[1]);
         workers = malloc(sizeof(pthread_t) * num_threads);
 
@@ -64,6 +61,7 @@ main(int argc, char **argv)
 
         printf("%d worker threads initialized\n", num_threads);
         printf("%d accounts initialized\n", num_accounts);
+        printf("--------------------------\n");
         fflush(stdout);
 
         for (i = 0; i < num_threads; i++) {
@@ -79,6 +77,7 @@ main(int argc, char **argv)
                 printf("Error: initialize accounts failed");
                 return 1;
         }
+
 
         for (i = 0; i < num_accounts; i++) {
                 pthread_mutex_init(&(accounts[i].lock), NULL);
@@ -96,6 +95,10 @@ main(int argc, char **argv)
 
         printf("Program exiting . . .\n");
 
+        free(q);
+        free(workers);
+        free(accounts);
+
         return 0;
 }
 
@@ -111,7 +114,6 @@ event_loop(queue_t *q)
         id = 1;
 
         while (end == 0) {
-                //printf("> "); //I would love if this worked
                 fflush(stdout);
 
                 line = read_line();
@@ -120,9 +122,9 @@ event_loop(queue_t *q)
                 if (strncasecmp(args[0], "END", 3) == 0) {
                         end = 1;
                         while (end) {
-                          pthread_cond_broadcast(&worker_cv);
-                          pthread_mutex_unlock(&q_lock);
-                          break;
+                              pthread_cond_broadcast(&worker_cv);
+                              pthread_mutex_unlock(&q_lock);
+                              break;
                         }
                         break;
                 }
@@ -130,7 +132,8 @@ event_loop(queue_t *q)
                 gettimeofday(&t, NULL);
 
                 r = malloc(sizeof(request_t));
-                r->cmd = args; r->request_id = id;
+                r->cmd = args; 
+                r->request_id = id;
                 r->starttime = t;
 
                 pthread_mutex_lock(&q_lock);
@@ -150,7 +153,7 @@ static void *
 handle_request_thread(void *arg)
 {
         queue_t *q = (queue_t *) arg;
-        //pthread_mutex_lock(&q_lock);
+
         while (end == 0) {
                 char **args;
                 queue_node_t *n;
@@ -179,15 +182,14 @@ handle_request_thread(void *arg)
                         handle_balance_check(args, n);
                 } else if (strncasecmp(args[0], "TRANS", 5 ) == 0) {
                         handle_trans(args, n);
-                } else if (strncasecmp(args[0], "END", 3 ) == 0) {
-                        end = handle_exit();
-                        return NULL;
                 } else {
                         printf("Invalid input: %s\n", r->cmd[0]);
                         continue;
                 }
 
                 printf("< ID %d\n", r->request_id);
+
+                free(n);
 
                 pthread_mutex_unlock(&q_lock);
         }
@@ -204,7 +206,6 @@ handle_balance_check(char **argv, queue_node_t *n)
         int balance;
         int acc_id;
         int req_id;
-        char *message;
         request_t *r;
 
         r = (request_t *)(n->datum);
@@ -218,8 +219,6 @@ handle_balance_check(char **argv, queue_node_t *n)
         pthread_mutex_unlock(&accounts[acc_id].lock);
 
         req_id = ((request_t *) n->datum)->request_id;
-
-        message = malloc(sizeof(char) * 50);
 
         gettimeofday(&t, NULL);
 
@@ -305,8 +304,8 @@ process_trans(request_t *r, int trans_size)
         tr = (r->transactions);
 
         for (i = 0; i < trans_size; i++) {
+                pthread_mutex_lock(&accounts[i].lock);
 
-        pthread_mutex_lock(&accounts[i].lock);
                 acc_balance = accounts[tr[i].acc_id].value; /* We assume acc list is origanized by id */
 
                 trans_amount = tr[i].amount; /* amount recorded from trans */
@@ -317,7 +316,7 @@ process_trans(request_t *r, int trans_size)
 
                 /* Trans amount could be negative */
                 if (trans_amount < 0 && (acc_balance + trans_amount < 0)) {
-                        printf("Not enough funds in account %d\n", i);
+                        printf("Not enough funds in account: %d!\n", i);
 
                         flockfile(f);
 
@@ -335,8 +334,6 @@ process_trans(request_t *r, int trans_size)
                         funlockfile(f);
 
                         fflush(f);
-
-                        return 1;
                 } else {
                         write_val = trans_amount + acc_balance;
 
@@ -348,26 +345,23 @@ process_trans(request_t *r, int trans_size)
 
                         r->endtime = t;
 
+                        flockfile(f);
+
+                        fprintf(f, "%d OK TIME %ld.%06ld %ld.%06ld\n",
+                                r->request_id,
+                                (long) r->starttime.tv_sec,
+                                (long) r->starttime.tv_usec,
+                                (long) r->endtime.tv_sec,
+                                (long) r->endtime.tv_usec);
+
+                        funlockfile(f);
+
+                        fflush(f);
 
                 }
 
-
                 pthread_mutex_unlock(&accounts[i].lock);
         }
-
-        flockfile(f);
-
-        fprintf(f, "%d OK TIME %ld.%06ld %ld.%06ld\n",
-                r->request_id,
-                (long) r->starttime.tv_sec,
-                (long) r->starttime.tv_usec,
-                (long) r->endtime.tv_sec,
-                (long) r->endtime.tv_usec);
-
-        funlockfile(f);
-
-
-        fflush(f);
 
         return 0;
 }
