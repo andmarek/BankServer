@@ -92,19 +92,9 @@ main(int argc, char **argv)
                 pthread_join(workers[i], NULL);
         }
 
-        while (!end) {
-                line = read_line();
-                args = split_line(line);
-
-                if (strncasecmp(args[0], "END", 3) == 0) {
-                        end = 1;
-                        pthread_mutex_unlock(&q_lock);
-                        break;
-                }
-        }
-
-        printf("Help me\n");
         fclose(f);
+
+        printf("Program exiting . . .\n");
 
         return 0;
 }
@@ -124,21 +114,18 @@ event_loop(queue_t *q)
                 //printf("> "); //I would love if this worked
                 fflush(stdout);
 
+                line = read_line();
+                args = split_line(line);
 
-<<<<<<< HEAD
                 if (strncasecmp(args[0], "END", 3) == 0) {
-                        end = 1;    
-                        int count = 0;
+                        end = 1;
                         while (end) {
-                          count++;
                           pthread_cond_broadcast(&worker_cv);
                           pthread_mutex_unlock(&q_lock);
                           break;
                         }
                         break;
                 }
-=======
->>>>>>> 5a66f4c755b25c064b7c9c4a9fd02061b242db1e
 
                 gettimeofday(&t, NULL);
 
@@ -157,8 +144,6 @@ event_loop(queue_t *q)
                 pthread_mutex_unlock(&q_lock);
         }
 
-        printf("end %d\n", end);
-
         return 0;
 }
 static void *
@@ -172,11 +157,9 @@ handle_request_thread(void *arg)
                 request_t *r;
 
                 pthread_mutex_lock(&q_lock);
-<<<<<<< HEAD
- 
+
                 while (is_empty(q) && !end) {
                         if (end) {
-                            printf("bro\n");
                             break;
                         }
                         pthread_cond_wait(&worker_cv, &q_lock);
@@ -185,13 +168,6 @@ handle_request_thread(void *arg)
                 if (end) {
                     break;
                 }
-                printf("before dequeue");
-=======
-                while (is_empty(q)) {
-                        //pthread_mutex_unlock(&q_lock); // what
-                        pthread_cond_wait(&worker_cv, &q_lock);
-                }
->>>>>>> 5a66f4c755b25c064b7c9c4a9fd02061b242db1e
 
                 n = dequeue(q);
 
@@ -215,13 +191,9 @@ handle_request_thread(void *arg)
 
                 pthread_mutex_unlock(&q_lock);
         }
-<<<<<<< HEAD
+
         pthread_mutex_unlock(&q_lock);
-=======
 
-        //pthread_mutex_unlock(&q_lock);
-
->>>>>>> 5a66f4c755b25c064b7c9c4a9fd02061b242db1e
         return 0;
 }
 
