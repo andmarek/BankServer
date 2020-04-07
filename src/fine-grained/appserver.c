@@ -24,7 +24,6 @@ uint8_t end; /* Determines if we exit */
 pthread_mutex_t q_lock;
 pthread_cond_t io_cv;
 pthread_cond_t worker_cv;
-
 int num_threads, num_accounts;
 
 int
@@ -37,11 +36,13 @@ main(int argc, char **argv)
         pthread_t *workers;
 
         if (argc < 3) {
-            printf("too few arguments.");
+            printf("You've entered few arguments.");
+            // Write some usage information here.
             return 0;
         }
 
         end = 0;
+
         num_threads = atoi(argv[1]);
         workers = malloc(sizeof(pthread_t) * num_threads);
 
@@ -105,15 +106,15 @@ main(int argc, char **argv)
 static void *
 event_loop(queue_t *q)
 {
-        char         **args;
         int          id;
+        char         **args;
         char         *line;
         request_t    *r;
         queue_node_t *n;
 
         id = 1;
 
-        while (end == 0) {
+        while (!end) {
                 fflush(stdout);
 
                 line = read_line();
@@ -132,7 +133,7 @@ event_loop(queue_t *q)
                 gettimeofday(&t, NULL);
 
                 r = malloc(sizeof(request_t));
-                r->cmd = args; 
+                r->cmd = args;
                 r->request_id = id;
                 r->starttime = t;
 
@@ -154,7 +155,7 @@ handle_request_thread(void *arg)
 {
         queue_t *q = (queue_t *) arg;
 
-        while (end == 0) {
+        while (!end) {
                 char **args;
                 queue_node_t *n;
                 request_t *r;
@@ -162,15 +163,11 @@ handle_request_thread(void *arg)
                 pthread_mutex_lock(&q_lock);
 
                 while (is_empty(q) && !end) {
-                        if (end) {
-                            break;
-                        }
                         pthread_cond_wait(&worker_cv, &q_lock);
                 }
 
-                if (end) {
-                    break;
-                }
+                if (end)
+                        break;
 
                 n = dequeue(q);
 
@@ -304,19 +301,20 @@ process_trans(request_t *r, int trans_size)
         tr = (r->transactions);
 
         for (i = 0; i < trans_size; i++) {
-                pthread_mutex_lock(&accounts[i].lock);
+                id = tr[i].acc_id; /* id recorded from trans */
 
-                acc_balance = accounts[tr[i].acc_id].value; /* We assume acc list is origanized by id */
+                pthread_mutex_lock(&accounts[id].lock);
+
+                acc_balance = accounts[id].value; /* We assume acc list is origanized by id */
 
                 trans_amount = tr[i].amount; /* amount recorded from trans */
 
-                id = tr[i].acc_id; /* id recorded from trans */
 
                 /* Check if the account has enough funds to withdrawal */
 
                 /* Trans amount could be negative */
                 if (trans_amount < 0 && (acc_balance + trans_amount < 0)) {
-                        printf("Not enough funds in account: %d!\n", i);
+                        printf("Not enough funds in account: %d!\n", id);
 
                         flockfile(f);
 
@@ -360,7 +358,7 @@ process_trans(request_t *r, int trans_size)
 
                 }
 
-                pthread_mutex_unlock(&accounts[i].lock);
+                pthread_mutex_unlock(&accounts[id].lock);
         }
 
         return 0;

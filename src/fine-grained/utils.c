@@ -11,10 +11,11 @@
 char *
 read_line()
 {
+    size_t bufsize;
     char *line;
-    line = NULL;
 
-    size_t bufsize = 0;
+    line = NULL;
+    bufsize = 0;
     getline(&line, &bufsize, stdin);
 
     return line;
